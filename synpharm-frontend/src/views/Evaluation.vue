@@ -11,17 +11,14 @@
         <button type="button" class="btn" :disabled="loading" @click="loadAll">
           {{ loading ? '加载中…' : '刷新' }}
         </button>
+        <button type="button" class="btn" :disabled="!focusNode" @click="sendToEvaluation">
+          送进评价体系
+        </button>
         <button type="button" class="btn btn--primary" :disabled="freezing" @click="doFreeze">
           {{ freezing ? '评估中…' : freeze ? '重新评估并冻结' : '评估并冻结' }}
         </button>
       </template>
     </PageHeader>
-
-    <FlowSteps
-      :project-id="projectId"
-      current="evaluation"
-      :candidate-id="candidateId"
-    />
 
     <p v-if="error" class="banner banner--danger">{{ error }}</p>
     <p v-if="notice" class="banner banner--ok">{{ notice }}</p>
@@ -60,6 +57,50 @@
         />
       </div>
       <EvaluationFreezePanel v-else :freeze="freeze" />
+    </section>
+
+    <section v-else-if="activeTab === 'predictions'" class="panel">
+      <div v-if="!predictions.length" class="panel__empty">
+        <EmptyState
+          title="还没有回写的预测结论"
+          description="点右上「送进评价体系」跳过去跑一次 DTI/PPI/DDI，算完点「回写候选」，结论会出现在这里。"
+        />
+      </div>
+      <template v-else>
+        <p class="pred__lead">
+          这些数值由评价体系的预测服务给出，不是本地算的 —— 这里只做陈列，
+          编辑与决策仍以「评估快照」里的冻结指标为输入。
+        </p>
+        <table class="pred">
+          <thead>
+            <tr>
+              <th>类型</th>
+              <th>靶点</th>
+              <th>结合亲和力</th>
+              <th>置信度</th>
+              <th>来源结果</th>
+              <th>时间</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="p in predictions" :key="p.id">
+              <td>{{ p.algoType }}</td>
+              <td>{{ p.targetName || p.targetId || '—' }}</td>
+              <td>{{ p.bindingAffinity != null ? `${p.bindingAffinity} kcal/mol` : '—' }}</td>
+              <td>
+                {{ p.confidenceScore != null ? `${Math.round(p.confidenceScore * 100)}%` : '—' }}
+                <span v-if="p.confidenceLevel" class="pred__level">{{ p.confidenceLevel }}</span>
+              </td>
+              <td class="pred__mono">{{ p.predictResultId || '—' }}</td>
+              <td class="pred__time">{{ (p.createdAt || '').replace('T', ' ').slice(0, 19) }}</td>
+              <td>
+                <button type="button" class="btn btn--sm" @click="detachPrediction(p.id)">解除挂接</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
     </section>
 
     <section v-else-if="activeTab === 'gaps'" class="panel">
@@ -152,8 +193,9 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import EvaluationFreezePanel from '@/components/design/EvaluationFreezePanel.vue'
 import GapPanel from '@/components/design/GapPanel.vue'
 import CandidateTree from '@/components/design/CandidateTree.vue'
-import FlowSteps from '@/components/design/FlowSteps.vue'
-import { editApi, evaluationApi, actionLabel, dimensionLabel, guardMeta } from '@/api/evaluation'
+import { useFlowStore } from '@/stores/flow'
+import { evaluationApi, editApi, actionLabel, dimensionLabel, guardMeta } from '@/api/evaluation'
+import { candidatePredictionApi, type CandidatePrediction } from '@/api/candidate'
 import type { CandidateTree as TreeData, EditGapReport, EditImpact, EvaluationFreeze } from '@/api/evaluation'
 import type { ApiError } from '@/utils/request'
 
@@ -175,9 +217,11 @@ const candidateId = Number(route.params.candidateId)
 const projectId = ref<number | null>(
   route.query.projectId ? Number(route.query.projectId) : null
 )
+const flowStore = useFlowStore()
 
 const TABS = [
   { key: 'freeze', label: '评估快照' },
+  { key: 'predictions', label: '外部预测' },
   { key: 'gaps', label: '缺口与动作' },
   { key: 'impact', label: '影响面' },
   { key: 'tree', label: '版本树' }
@@ -188,13 +232,47 @@ const freezing = ref(false)
 const diagnosing = ref(false)
 const error = ref('')
 const notice = ref('')
-const activeTab = ref<'freeze' | 'gaps' | 'impact' | 'tree'>('freeze')
+const activeTab = ref<'freeze' | 'predictions' | 'gaps' | 'impact' | 'tree'>('freeze')
 
 const freeze = ref<EvaluationFreeze | null>(null)
 const gaps = ref<EditGapReport | null>(null)
 const impact = ref<EditImpact | null>(null)
 const tree = ref<TreeData | null>(null)
 const pendingAction = ref('')
+
+/** 评价体系回写的外部预测结论（DTI/PPI/DDI），与理化指标分属两条来源 */
+const predictions = ref<CandidatePrediction[]>([])
+
+/** 当前候选在版本树里的节点；送进评价体系要用它的结构 */
+const focusNode = computed(() => tree.value?.nodes.find((n) => n.id === candidateId) ?? null)
+
+/**
+ * 把候选送进评价体系：带 candidateId / projectId / 结构，
+ * 预测完成后「评价工作台」会出现「回写候选」按钮，结论才能落回这条候选。
+ */
+function sendToEvaluation(): void {
+  const node = focusNode.value
+  router.push({
+    path: '/evaluation',
+    query: {
+      tab: 'single',
+      candidateId: String(candidateId),
+      projectId: projectId.value ? String(projectId.value) : '',
+      candidateName: node?.moleculeName || `#${candidateId}`,
+      smiles: node?.smiles || ''
+    }
+  })
+}
+
+async function detachPrediction(id: number): Promise<void> {
+  try {
+    await candidatePredictionApi.detach(candidateId, id)
+    predictions.value = await candidatePredictionApi.list(candidateId)
+    notice.value = '已解除该条预测与候选的挂接（预测记录本身仍保留）'
+  } catch (e) {
+    error.value = (e as ApiError)?.message || '解除挂接失败'
+  }
+}
 
 const gateLabel = computed(() => {
   if (!freeze.value) return '待评估'
@@ -222,6 +300,7 @@ const gateText = computed(() => {
 
 function tabReady(key: string): boolean {
   if (key === 'freeze') return true
+  if (key === 'predictions') return true
   if (key === 'gaps') return Boolean(freeze.value)
   if (key === 'impact') return Boolean(gaps.value)
   return Boolean(tree.value)
@@ -239,6 +318,13 @@ async function loadAll() {
     }
     gaps.value = await editApi.gaps(candidateId).catch(() => null)
     tree.value = await editApi.tree(candidateId).catch(() => null)
+    predictions.value = await candidatePredictionApi.list(candidateId).catch(() => [])
+
+    // 侧栏「项目流程」组：评估页只有 candidateId，projectId 靠冻结快照反查
+    if (projectId.value) {
+      flowStore.enter(projectId.value)
+    }
+    flowStore.setCandidate(candidateId)
   } catch (e) {
     error.value = (e as ApiError)?.message || '加载失败'
   } finally {
@@ -424,6 +510,54 @@ function switchCandidate(id: number) {
       font-weight: $font-weight-medium;
     }
   }
+}
+
+.pred {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: $font-size-sm;
+
+  th,
+  td {
+    padding: $spacing-sm;
+    border-bottom: 1px solid $color-border-soft;
+    text-align: left;
+  }
+
+  thead th {
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    color: $color-text-faint;
+    border-bottom: 1px solid $color-border;
+  }
+}
+
+.pred__lead {
+  margin: 0 0 $spacing-md;
+  font-size: $font-size-xs;
+  line-height: 1.7;
+  color: $color-text-soft;
+}
+
+.pred__mono {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: $color-text-soft;
+}
+
+.pred__level {
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: $radius-pill;
+  background: $color-surface-sunken;
+  color: $color-text-faint;
+  font-size: 10px;
+}
+
+.pred__time {
+  font-size: $font-size-xs;
+  color: $color-text-faint;
+  white-space: nowrap;
 }
 
 .panel {

@@ -36,8 +36,6 @@
           </template>
         </PageHeader>
 
-        <FlowSteps :project-id="projectId || null" current="evaluation" :candidate-id="candidateId || null" />
-
         <p v-if="error" class="banner banner--danger">{{ error }}</p>
         <p v-if="notice" class="banner banner--ok">{{ notice }}</p>
 
@@ -346,7 +344,7 @@ import { useRoute, useRouter } from 'vue-router'
 import Sidebar from '@/components/Sidebar.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import SpSelect from '@/components/ui/SpSelect.vue'
-import FlowSteps from '@/components/design/FlowSteps.vue'
+import { useFlowStore } from '@/stores/flow'
 import MoleculeEditor from '@/components/design/MoleculeEditor.vue'
 import EvaluationFreezePanel from '@/components/design/EvaluationFreezePanel.vue'
 import GapPanel from '@/components/design/GapPanel.vue'
@@ -377,6 +375,7 @@ const projects = ref<ProjectBrief[]>([])
 const projectId = ref(0)
 const project = ref<ProjectBrief | null>(null)
 const snapshot = ref<BaselineSnapshot | null>(null)
+const flowStore = useFlowStore()
 
 const runs = ref<GenerationRun[]>([])
 const runId = ref(0)
@@ -907,6 +906,11 @@ async function loadAll() {
       projectId.value = exists ? fromQuery : projects.value[0]?.id ?? 0
     }
     await loadProjectContext()
+    // 分子精修台也属于「评估与编辑」的延伸：把项目与候选同步给侧栏流程组
+    if (projectId.value) {
+      flowStore.enter(projectId.value, project.value?.name ?? '')
+    }
+    flowStore.setCandidate(candidateId.value || null)
   } catch (e) {
     error.value = (e as ApiError)?.message || '加载失败'
   } finally {

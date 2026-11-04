@@ -20,8 +20,6 @@
       </template>
     </PageHeader>
 
-    <FlowSteps :project-id="projectId" current="baseline" />
-
     <p v-if="error" class="banner banner--danger">{{ error }}</p>
     <p v-if="notice" class="banner banner--ok">{{ notice }}</p>
 
@@ -157,7 +155,7 @@ import PageHeader from '@/components/ui/PageHeader.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import BaselineBoard from '@/components/design/BaselineBoard.vue'
 import BaselineWizard from '@/components/design/BaselineWizard.vue'
-import FlowSteps from '@/components/design/FlowSteps.vue'
+import { useFlowStore } from '@/stores/flow'
 import { requirementApi } from '@/api/requirement'
 import { BLOCK_LABEL, BLOCK_STATE_LABEL, MODALITY_LABEL, labelOf } from '@/utils/designLabels'
 import type { ApiError } from '@/utils/request'
@@ -188,6 +186,7 @@ import type {
 const route = useRoute()
 const router = useRouter()
 const projectId = Number(route.params.projectId)
+const flowStore = useFlowStore()
 
 /** 冻结基线后的下一步：直接去生成页，不必回项目列表再找入口 */
 function goGeneration() {
@@ -334,6 +333,10 @@ async function loadAll() {
     risks.value = riskList ?? []
     history.value = historyList ?? []
     constraints.value = constraintSet ?? null
+
+    // 侧栏「项目流程」组的数据来源：是否有冻结基线决定第 2 步的口径提示
+    flowStore.enter(projectId, projectData?.name ?? '')
+    flowStore.setReady(Boolean(currentSnapshot.value), projectData?.currentRoundId != null)
   } catch (e) {
     error.value = toMessage(e)
   } finally {

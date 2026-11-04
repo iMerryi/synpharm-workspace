@@ -3,19 +3,13 @@
   <Sidebar />
   <main class="gn__main">
     <div class="page">
-    <PageHeader :title="projectName" subtitle="需求分析 → 生成 → 编辑：本页负责把冻结基线转成可筛选、可追溯的候选池">
+    <PageHeader :title="projectName" subtitle="需求分析 → 生成 → 编辑：把冻结基线转成可筛选、可追溯的候选池（当前环境为导入后筛选，不做结构创新）">
       <template #actions>
         <button type="button" class="btn" :disabled="loading" @click="loadAll">
           {{ loading ? '加载中…' : '刷新' }}
         </button>
       </template>
     </PageHeader>
-
-    <FlowSteps
-      :project-id="projectId"
-      current="generation"
-      :candidate-id="firstCandidateId"
-    />
 
     <p v-if="error" class="banner banner--danger">{{ error }}</p>
     <p v-if="notice" class="banner banner--ok">{{ notice }}</p>
@@ -155,18 +149,31 @@
         <GenerationFunnel :funnel="activeRun.funnel" :cluster-count="activeRun.validClusterCount" />
 
         <details v-if="activeRun.plan" class="plan">
-          <summary class="plan__summary">查看 S3 生成计划（采样量与工具链）</summary>
+          <summary class="plan__summary">
+            {{ isImport ? '查看本批计划（导入清单与判定口径）' : '查看 S3 生成计划（采样量与工具链）' }}
+          </summary>
           <!-- 计划原来是以原始 JSON 贴出来的，除了工程师没人能读。
                这里改成它实际回答的几个问题：用什么策略、算多少、为什么 -->
           <dl class="plan__kv">
             <div class="plan__row">
               <dt>生成策略</dt>
-              <dd>{{ activeRun.plan.strategy }}<span v-if="activeRun.plan.degraded" class="tag tag--warning">降级</span></dd>
+              <dd>
+                {{ strategyMeta(activeRun.plan.strategy).label }}
+                <span v-if="activeRun.plan.degraded" class="tag tag--warning">降级</span>
+              </dd>
             </div>
-            <div class="plan__row">
-              <dt>计划采样</dt>
-              <dd>{{ activeRun.plan.nSamples }} 条（每批 {{ activeRun.plan.batchSize }} 条）</dd>
+            <!-- 导入路径没有「采样」这回事：种子原样进入 S4，nSamples/batchSize 只是种子数的镜像。
+                 照抄「计划采样 N 条（每批 N 条）」会让人以为系统真的生成了 N 个新分子 -->
+            <div v-if="isImport" class="plan__row">
+              <dt>导入条目</dt>
+              <dd>{{ activeRun.funnel?.generated ?? activeRun.plan.nSamples }} 条种子原样进入筛选（不做结构改写）</dd>
             </div>
+            <template v-else>
+              <div class="plan__row">
+                <dt>计划采样</dt>
+                <dd>{{ activeRun.plan.nSamples }} 条（每批 {{ activeRun.plan.batchSize }} 条）</dd>
+              </div>
+            </template>
             <div class="plan__row">
               <dt>随机种子</dt>
               <dd><code>{{ activeRun.plan.seed }}</code></dd>
@@ -240,10 +247,10 @@ import GenerationConfig from '@/components/design/GenerationConfig.vue'
 import GenerationDiagnosis from '@/components/design/GenerationDiagnosis.vue'
 import GenerationFunnel from '@/components/design/GenerationFunnel.vue'
 import GenerationCandidates from '@/components/design/GenerationCandidates.vue'
-import FlowSteps from '@/components/design/FlowSteps.vue'
 import { generationApi, statusMeta, strategyMeta, verdictMeta } from '@/api/generation'
 import type { GenerationCreateRequest, GenerationRun, GenerationVerdict } from '@/api/generation'
 import { requirementApi } from '@/api/requirement'
+import { useFlowStore } from '@/stores/flow'
 import type { ApiError } from '@/utils/request'
 
 /**
@@ -255,9 +262,10 @@ import type { ApiError } from '@/utils/request'
  */
 const route = useRoute()
 const projectId = Number(route.params.projectId)
+const flowStore = useFlowStore()
 
 const TABS = [
-  { key: 'new', label: '发起生成' },
+  { key: 'new', label: '发起批次' },
   { key: 'runs', label: '批次列表' },
   { key: 'detail', label: '批次详情' }
 ] as const
@@ -304,6 +312,9 @@ const canCancel = computed(
   () => activeRun.value?.status === 'PENDING' || activeRun.value?.status === 'RUNNING'
 )
 
+/** 导入路径（SEED_LIBRARY）没有采样这回事，计划面板要换措辞 */
+const isImport = computed(() => activeRun.value?.strategy === 'SEED_LIBRARY')
+
 /** 后端没给 diagnosis 时用批次状态兜底，避免面板空白 */
 const fallbackVerdict = computed<GenerationVerdict | null>(() => {
   const status = activeRun.value?.status
@@ -344,6 +355,21 @@ async function loadAll() {
     hasBaseline.value = Boolean(snapshot)
     hasRound.value = project?.currentRoundId != null
     runs.value = list.list ?? []
+
+    // 侧栏的「项目流程」组靠这里的数据决定哪一步可点
+    flowStore.enter(projectId, projectName.value)
+    flowStore.setReady(hasBaseline.value, hasRound.value)
+
+    // 回到本页（而不是刚提交完）时也要能点第 3 步。
+    // 上一版只在「提交成功」和「点开某批次」时才算 firstCandidateId，
+    // 于是刷新页面后第 3 步永远是灰的 —— 表现为「第二次进候选生成就走不下去了」。
+    const withCandidates = runs.value.find((r) => (r.finalCount ?? 0) > 0)
+    if (withCandidates) {
+      await loadFirstCandidate(withCandidates.id)
+    } else {
+      firstCandidateId.value = null
+      flowStore.setCandidate(null)
+    }
   } catch (e) {
     error.value = (e as ApiError)?.message || '加载失败'
   } finally {
@@ -365,10 +391,13 @@ async function submit(body: GenerationCreateRequest) {
   notice.value = ''
   try {
     const run = await generationApi.submit(projectId, body)
+    // 失败时优先说「为什么」，而不是让用户自己去详情里找：
+    // errorMsg 可能为空（结论放在诊断里），此时取第一条发现
+    const failReason = run.errorMsg || run.diagnosis?.findings?.[0]?.message || '见批次详情'
     notice.value =
       run.status === 'SUCCEEDED' || run.status === 'PARTIAL'
         ? `已生成 ${run.finalCount ?? 0} 个候选（${run.runNo}）`
-        : `批次 ${run.runNo} 结束于 ${statusMeta(run.status).label}：${run.errorMsg || '见详情'}`
+        : `批次 ${run.runNo} 未产出候选：${failReason}`
     activeRun.value = run
     activeTab.value = 'detail'
     await loadFirstCandidate(run.id)
@@ -406,6 +435,7 @@ async function loadFirstCandidate(runId: number) {
   } catch {
     // 拿不到就禁用第 3 步，不阻断主流程
   }
+  flowStore.setCandidate(firstCandidateId.value)
 }
 
 async function cancel() {

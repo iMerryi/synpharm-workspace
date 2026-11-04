@@ -89,7 +89,7 @@ const realDesignApi: DesignApi = {
 
   fetchCommands: () => request.get<DesignCommand[]>('/api/design/commands'),
 
-  fetchCapabilities: () => request.get<EvaluationCapabilities>('/api/design/capabilities'),
+  fetchCapabilities: () => request.get<EvaluationCapabilities>('/api/platform/capabilities'),
 
   generateCandidates: (payload) =>
     request.post<GenerateCandidatesResult>('/api/design/generations', payload),

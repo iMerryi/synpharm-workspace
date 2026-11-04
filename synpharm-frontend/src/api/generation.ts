@@ -42,6 +42,15 @@ export interface GenerationSeedInput {
   lightChain?: string
   /** 双抗等额外链 */
   extraChains?: string[]
+  /**
+   * 库条目 id（`library_item.id`）。
+   *
+   * 传了这个就不用传结构：后端按当前用户可见性把库里的 SMILES / 重轻链解析出来。
+   * 「从库选种子」是给不懂 SMILES 的用户准备的零输入路径。
+   */
+  libraryItemId?: number
+  /** 仅用于界面回显「你选了哪几条」，后端不依赖它 */
+  name?: string
 }
 
 export interface GenerationCreateRequest {
@@ -92,6 +101,13 @@ export interface GenerationFinding {
 
 export interface GenerationDiagnosis {
   verdict: GenerationVerdict
+  /**
+   * 闸门判定：OK / BELOW_MIN_CANDIDATES / BELOW_DIVERSITY / EMPTY。
+   *
+   * 与 verdict 的区别：verdict 是「能不能往下走」，gate 是「为什么」。分开是因为
+   * 「候选数不足」允许进入编辑，但界面上不能因此显示一个绿色的「通过」。
+   */
+  gate?: string | null
   funnel: GenerationFunnel
   findings: GenerationFinding[]
   readyForEdit: boolean
@@ -295,7 +311,10 @@ export function filterReasonLabel(code: string): string {
     BRENK_HIT: 'BRENK 结构警报',
     ILLEGAL_RESIDUE: '非法残基/结构无法解析',
     QUOTA_CUT: '超出多样性配额',
-    MERGED_DUPLICATE: '与已有候选重复合并'
+    MERGED_DUPLICATE: '与已有候选重复合并',
+    DEDUP_MERGED: '批次内重复合并',
+    DUPLICATE_OF_EXISTING: '已在候选池（跨批次去重）',
+    SEQUENCE_METRICS_UNAVAILABLE: '序列无可用指标（未判定）'
   }
   return MAP[code] || code
 }

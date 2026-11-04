@@ -15,6 +15,44 @@
     </router-link>
 
     <nav class="nav__body">
+      <!--
+        项目流程组：只在「进了某个项目」时出现。
+        步骤条原来横在每个设计页顶部（FlowSteps），但它是页面级组件 ——
+        换个页面就换一条，看起来像四份不同的流程；而且它占掉了页面最上面一行。
+        搬到侧栏后，「我在第几步」变成常驻信息，页面把首屏让给正文。
+      -->
+      <div v-if="showFlow" class="nav__group">
+        <p class="nav__group-label">
+          <span>项目流程</span>
+          <i class="nav__group-rule" aria-hidden="true" />
+        </p>
+        <p class="nav__project" :title="flowStore.contextLabel">{{ flowStore.contextLabel }}</p>
+
+        <!-- 四个步骤按顺序整体渲染：不可点的那个也要留在原位，
+             把它挪到末尾会破坏 1→2→3→4 的阅读顺序 -->
+        <template v-for="step in flowSteps" :key="step.key">
+          <router-link
+            v-if="!step.disabled"
+            :to="step.path"
+            class="nav__link nav__link--step"
+            :class="{ 'nav__link--active': isStepActive(step) }"
+            :title="collapsed ? `${step.no} ${step.label}` : step.hint"
+          >
+            <span class="nav__step" :class="`nav__step--${step.state}`">{{ step.no }}</span>
+            <span class="nav__label">{{ step.label }}</span>
+          </router-link>
+
+          <!-- 还轮不到的步骤：渲染成不可点的行，而不是隐藏 ——
+               隐藏会让人以为「这里只有三步」，说不出「为什么第四步不见了」 -->
+          <span v-else class="nav__link nav__link--off" :title="step.hint">
+            <span class="nav__step nav__step--off">{{ step.no }}</span>
+            <span class="nav__label">{{ step.label }}</span>
+          </span>
+        </template>
+
+        <router-link to="/projects" class="nav__switch">切换项目</router-link>
+      </div>
+
       <div v-for="group in navGroups" :key="group.key" class="nav__group">
         <p class="nav__group-label">
           <span>{{ group.label }}</span>
@@ -96,6 +134,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useFlowStore } from '@/stores/flow'
 
 interface NavItem {
   path: string
@@ -157,8 +196,106 @@ const ICONS: Record<string, string[]> = {
 }
 
 const authStore = useAuthStore()
+const flowStore = useFlowStore()
 const router = useRouter()
 const route = useRoute()
+
+/**
+ * 是否显示「项目流程」组。
+ *
+ * 只在项目语境的路由下显示：设计项目列表、库、预测等页面与某个具体项目的
+ * 四个步骤无关，显示出来只会让人误点。`/design`（分子精修台）也算 ——
+ * 它内部可以选择项目与候选，属于评估与编辑的延伸。
+ */
+const showFlow = computed(() => {
+  if (!flowStore.inProject) return false
+  const p = route.path
+  return (
+    p.startsWith('/design/projects/') ||
+    p.startsWith('/design/candidates/') ||
+    p === '/design' ||
+    p.startsWith('/design/')
+  )
+})
+
+interface FlowStep {
+  key: string
+  no: number
+  label: string
+  path: string
+  hint: string
+  disabled: boolean
+  state: 'todo' | 'current' | 'done'
+}
+
+/** 四个步骤。禁用条件与原来的 FlowSteps 保持一致：没有候选就进不了评估 */
+const flowSteps = computed<FlowStep[]>(() => {
+  const id = flowStore.projectId
+  const candidateId = flowStore.candidateId
+  const base = `/design/projects/${id}`
+  const steps: FlowStep[] = [
+    {
+      key: 'baseline',
+      no: 1,
+      label: '需求分析',
+      path: `${base}/baseline`,
+      hint: '冻结基线：生成只读快照，不读项目当前状态',
+      disabled: false,
+      state: 'todo'
+    },
+    {
+      key: 'generation',
+      no: 2,
+      label: '候选生成',
+      path: `${base}/generation`,
+      hint: flowStore.baselineReady
+        ? '跑一批候选：去重 → 粗筛 → 配额，每步都留原因'
+        : '先冻结基线，才能生成候选',
+      disabled: false,
+      state: 'todo'
+    },
+    {
+      key: 'evaluation',
+      no: 3,
+      label: '评估与编辑',
+      path: candidateId != null ? `/design/candidates/${candidateId}/evaluation` : `${base}/generation`,
+      hint:
+        candidateId != null
+          ? '冻结分数 → 诊断缺口 → 挑动作 → 看影响面'
+          : '还没有候选可以评估 —— 先在候选生成里跑一批',
+      disabled: candidateId == null,
+      state: 'todo'
+    },
+    {
+      key: 'decision',
+      no: 4,
+      label: '决策',
+      path: `${base}/decision`,
+      hint: '装配证据 → 否决复核 → 分桶排名 → 名额 → 回放指纹',
+      disabled: false,
+      state: 'todo'
+    }
+  ]
+
+  // 当前位置：路径前缀能唯一确定是哪一步。
+  // 注意 /decision 必须排在通用 /design/ 之前 —— 项目页全都以 /design/ 开头，
+  // 通用分支放前面会把决策页判成「评估与编辑」
+  const p = route.path
+  let current = ''
+  if (p.startsWith('/design/projects/') && p.endsWith('/baseline')) current = 'baseline'
+  else if (p.startsWith('/design/projects/') && p.endsWith('/generation')) current = 'generation'
+  else if (p.startsWith('/design/projects/') && p.endsWith('/decision')) current = 'decision'
+  else if (p.startsWith('/design/candidates/') || p === '/design') current = 'evaluation'
+
+  const order = steps.map((s) => s.key)
+  const curIdx = order.indexOf(current)
+  return steps.map((s, i) => ({
+    ...s,
+    state: i === curIdx ? 'current' : i < curIdx ? 'done' : 'todo'
+  }))
+})
+
+const isStepActive = (step: FlowStep) => step.state === 'current'
 
 const STORAGE_KEY = 'nav_collapsed'
 
@@ -184,8 +321,13 @@ function toggle() {
 
 /**
  * 主导航。按**产品线**分组：
- *   药物设计（设计项目 / 分子精修台 / 靶点库）
- *   分子预测（仪表盘 / 预测中心 / 预测结果 / 任务管理），与设计流程暂无数据往来
+ *   数据资产（库）
+ *   药物设计（设计项目 / 分子精修台）
+ *   评价体系（评价工作台 / 评价记录），与设计流程暂无数据往来
+ *
+ * ⚠️ 2026-11-03 起「分子预测」不再是产品线名字：它只是评价体系里的一个执行入口。
+ * 原来的仪表盘 / 预测中心 / 预测结果 / 任务管理四页已合并进「评价工作台」与
+ * 「评价记录」两页（页内页签），旧路由保留重定向，见 router/index.ts。
  *
  * 顺序是「项目 → 工具 → 基础数据」：用户的第一动作是选项目，靶点库是前两者的
  * 数据底座，按查阅频率排比按概念层级排更顺手。
@@ -196,6 +338,15 @@ function toggle() {
  * 口袋页签替代不了，所以只从导航移除、不删页面。
  */
 const navGroups: NavGroup[] = [
+  {
+    key: 'assets',
+    label: '数据资产',
+    items: [
+      // 「库」不是药物设计专属：公有/私有数据集是跨产品线的基础数据，
+      // 分子预测侧将来也要读它。放在设计组下会误导依赖方向。
+      { path: '/library', label: '库', icon: 'targets', match: ['/library'] }
+    ]
+  },
   {
     key: 'design',
     label: '药物设计',
@@ -212,19 +363,23 @@ const navGroups: NavGroup[] = [
         icon: 'workbench',
         match: ['/design'],
         exact: true
-      },
-      // 靶点库是设计流程的基础数据：基线块1（靶点）与块2（结构/口袋）读的就是它
-      { path: '/targets', label: '靶点库', icon: 'targets', match: ['/targets'] }
+      }
     ]
   },
   {
-    key: 'predict',
-    label: '分子预测',
+    key: 'evaluation',
+    label: '评价体系',
     items: [
-      { path: '/dashboard', label: '仪表盘', icon: 'dashboard', match: ['/dashboard'] },
-      { path: '/predict', label: '预测中心', icon: 'predict', match: ['/predict'] },
-      { path: '/results', label: '预测结果', icon: 'results', match: ['/results', '/result'] },
-      { path: '/tasks', label: '任务管理', icon: 'tasks', match: ['/tasks'] }
+      // 「分子预测」只是评价体系里的一个执行入口，不是产品线名字。
+      // 侧栏只留两项：工作台（做评价）与记录（看结果），原来的四个页面已合并到这两页内。
+      // 工作台必须 exact：/evaluation/records 以 /evaluation 开头，否则两项会同时点亮。
+      { path: '/evaluation', label: '评价工作台', icon: 'predict', match: ['/evaluation'], exact: true },
+      {
+        path: '/evaluation/records',
+        label: '评价记录',
+        icon: 'results',
+        match: ['/evaluation/records', '/result', '/visualization']
+      }
     ]
   }
 ]
@@ -299,6 +454,12 @@ onMounted(() => {
       &--active::before {
         left: -8px;
       }
+    }
+
+    // 收起后项目名与「切换项目」没有横向空间，藏掉；步骤序号仍可见
+    .nav__project,
+    .nav__switch {
+      display: none;
     }
 
     // 收起后组标题只剩一条居中细分隔线：比隐藏整组更能交代「这里换组了」
@@ -505,6 +666,84 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ---------------- 项目流程组 ---------------- */
+
+/* 项目名：放在组标题下面一行，长了就截断 —— 换行会把 4 个步骤整体推下去 */
+.nav__project {
+  margin: -2px 0 8px;
+  padding: 0 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.34);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 步骤序号：比图标更能表达「先后」。圆圈里放数字，完成态填实、当前态描边高亮 */
+.nav__step {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: $font-weight-semibold;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.6);
+  transition: background $transition-fast, border-color $transition-fast, color $transition-fast;
+
+  &--done {
+    border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  &--current {
+    border-color: $accent-light;
+    background: rgba(20, 184, 166, 0.28);
+    color: #fff;
+  }
+
+  &--off {
+    border-style: dashed;
+    border-color: rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.28);
+  }
+}
+
+.nav__link--step {
+  height: 34px;
+}
+
+/* 还轮不到的步骤：虚线序号 + 更淡的文字，鼠标上给原因 */
+.nav__link--off {
+  color: rgba(255, 255, 255, 0.32);
+  cursor: not-allowed;
+
+  &:hover {
+    color: rgba(255, 255, 255, 0.32);
+    background: none;
+  }
+}
+
+.nav__switch {
+  display: inline-block;
+  margin: 6px 0 0;
+  padding: 0 8px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.42);
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
+
+  &:hover {
+    color: rgba(255, 255, 255, 0.72);
+  }
 }
 
 /* ---------------- 底部用户区 ---------------- */

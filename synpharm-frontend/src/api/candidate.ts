@@ -76,3 +76,61 @@ export interface CandidateVersionResponse {
   needsReEval?: boolean
   editLogId?: number
 }
+
+/** 候选上挂着的一条外部预测结论（评价体系回写） */
+export interface CandidatePrediction {
+  id: number
+  projectId: number
+  candidateId: number
+  algoType: string
+  targetId?: string | null
+  targetName?: string | null
+  ligandSmiles?: string | null
+  bindingAffinity?: number | null
+  confidenceScore?: number | null
+  confidenceLevel?: string | null
+  interactions?: unknown
+  predictResultId?: string | null
+  datasetInfo?: unknown
+  note?: string | null
+  createdAt?: string
+}
+
+export interface CandidatePredictionAttachRequest {
+  algoType: string
+  targetId?: string
+  targetName?: string
+  ligandSmiles?: string
+  bindingAffinity?: number | null
+  confidenceScore?: number | null
+  confidenceLevel?: string
+  interactions?: unknown
+  predictResultId?: string
+  datasetInfo?: unknown
+  note?: string
+}
+
+/**
+ * 候选 × 外部预测结论。
+ *
+ * 预测由 synpharm-predict 算，这里只记录「结论属于哪个候选」。
+ * 设计域不重算预测值 —— 重算就会出现两个预测器，结论打架时无从判断谁对。
+ */
+export const candidatePredictionApi = {
+  list(candidateId: number) {
+    return request.get<CandidatePrediction[]>(`/api/design/candidates/${candidateId}/predictions`)
+  },
+
+  attach(candidateId: number, payload: CandidatePredictionAttachRequest) {
+    return request.post<CandidatePrediction>(
+      `/api/design/candidates/${candidateId}/predictions`,
+      payload
+    )
+  },
+
+  detach(candidateId: number, predictionId: number) {
+    return request.delete<void>(
+      `/api/design/candidates/${candidateId}/predictions/${predictionId}`
+    )
+  }
+}

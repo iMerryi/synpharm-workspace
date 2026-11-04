@@ -241,7 +241,7 @@ function libraryTargetId(code: BaselineBlockCode): number | null {
 function openTargetLibrary(code: BaselineBlockCode) {
   const targetId = libraryTargetId(code)
   if (!targetId) return
-  void router.push({ path: '/targets', query: { targetId: String(targetId) } })
+  void router.push({ path: '/library', query: { dataset: undefined, targetId: String(targetId) } })
 }
 
 /** 块在快照里对应的字段名 */

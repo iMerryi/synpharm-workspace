@@ -1,28 +1,7 @@
 <template>
   <div class="pc">
-    <Sidebar />
-    <main class="pc__main">
-      <!-- 页头 -->
-      <header class="pc__header">
-        <div>
-          <h1 class="pc__title">预测中心</h1>
-          <p class="pc__subtitle">药物 · 蛋白质 · 分子间相互作用智能预测</p>
-        </div>
-        <div class="pc__stats">
-          <span class="pc__stat"><b>2,500+</b><em>预测任务</em></span>
-          <span class="pc__stat"><b>98%</b><em>准确率</em></span>
-        </div>
-      </header>
-
-      <!-- 模式切换 -->
-      <div class="pc__tabs">
-        <button class="pc__tab" :class="{ 'pc__tab--active': mode === 'single' }" @click="mode = 'single'">单条预测</button>
-        <button class="pc__tab" :class="{ 'pc__tab--active': mode === 'batch' }" @click="mode = 'batch'">批量预测</button>
-        <button class="pc__tab" :class="{ 'pc__tab--active': mode === 'history' }" @click="mode = 'history'">预测历史</button>
-      </div>
-
       <!-- ===== 单条预测 ===== -->
-      <section v-show="mode === 'single'" class="pc__panel">
+      <section v-if="props.mode === 'single'" class="pc__panel">
         <div class="pc__card">
           <div class="pc__types">
             <button
@@ -41,6 +20,12 @@
 
           <div v-if="prefilledTargetName" class="pc__target-tip">
             🎯 已选择靶点：<b>{{ prefilledTargetName }}</b>
+          </div>
+
+          <div v-if="sourceCandidate" class="pc__target-tip pc__target-tip--source">
+            🧬 正在评价项目 <b>{{ sourceCandidate.projectName || `#${sourceCandidate.projectId}` }}</b>
+            的候选 <b>{{ sourceCandidate.candidateName || `#${sourceCandidate.candidateId}` }}</b>
+            —— 预测完成后可把结论回写到该候选
           </div>
 
           <div class="pc__form">
@@ -117,7 +102,7 @@
             </button>
             <button class="pc__btn pc__btn--primary" :disabled="!isValidInput || isLoading" @click="handlePredict">
               <span v-if="isLoading" class="pc__spin"></span>
-              {{ isLoading ? '预测中...' : '开始预测' }}
+              {{ isLoading ? '评价中...' : '开始评价' }}
             </button>
           </div>
           <div v-if="predictError" class="pc__error">{{ predictError }}</div>
@@ -125,10 +110,10 @@
       </section>
 
       <!-- ===== 批量预测 ===== -->
-      <section v-show="mode === 'batch'" class="pc__panel">
+      <section v-if="props.mode === 'batch'" class="pc__panel">
         <div class="pc__card">
           <div class="pc__card-head">
-            <h3 class="pc__card-title">CSV 批量预测</h3>
+            <h3 class="pc__card-title">CSV 批量评价</h3>
             <p class="pc__card-sub">上传 CSV 文件，系统异步处理，支持 DTI / PPI / DDI</p>
           </div>
 
@@ -155,7 +140,7 @@
               @click="handleBatchUpload"
             >
               <span v-if="batchUploading" class="pc__spin"></span>
-              {{ batchUploading ? '上传中...' : '开始批量预测' }}
+              {{ batchUploading ? '上传中...' : '开始批量评价' }}
             </button>
           </div>
 
@@ -184,64 +169,10 @@
         </div>
       </section>
 
-      <!-- ===== 预测历史 ===== -->
-      <section v-show="mode === 'history'" class="pc__panel">
-        <div class="pc__card">
-          <div class="pc__card-head">
-            <h3 class="pc__card-title">预测历史</h3>
-            <p class="pc__card-sub">查看当前用户的近期预测记录</p>
-          </div>
-
-          <div v-if="historyLoading" class="pc__state">加载中...</div>
-          <div v-else-if="historyError" class="pc__state pc__state--error">{{ historyError }}</div>
-          <div v-else-if="historyList.length === 0" class="pc__state">暂无预测历史</div>
-
-          <template v-else>
-            <div v-for="(item, idx) in historyList" :key="idx" class="pc__history-item">
-              <div class="pc__history-head">
-                <span class="pc__history-type">{{ getAlgoTypeText(item.algoType) }}</span>
-                <span class="pc__history-time">{{ item.createdAt ? formatTime(item.createdAt) : '-' }}</span>
-              </div>
-
-              <div class="pc__history-body">
-                <div class="pc__history-field">
-                  <span class="pc__history-label">靶点名称</span>
-                  <span class="pc__history-value">{{ item.targetName || '-' }}</span>
-                </div>
-                <div v-if="item.ligandSmiles" class="pc__history-field">
-                  <span class="pc__history-label">配体 SMILES</span>
-                  <span class="pc__history-value pc__history-value--smiles">{{ item.ligandSmiles }}</span>
-                </div>
-                <div v-if="isDti(item.algoType)" class="pc__history-field">
-                  <span class="pc__history-label">结合亲和力</span>
-                  <span class="pc__history-value">
-                    {{ item.bindingAffinity != null ? item.bindingAffinity.toFixed(2) + ' kcal/mol' : '-' }}
-                  </span>
-                </div>
-                <div class="pc__history-field">
-                  <span class="pc__history-label">置信度</span>
-                  <span class="pc__history-value">
-                    {{ Math.round((item.confidenceScore ?? 0) * 100) }}%
-                    <span v-if="item.confidenceLevel" class="pc__history-confidence" :style="{ color: getConfidenceColor(item.confidenceScore ?? 0) }">
-                      {{ getConfidenceText(item.confidenceLevel || '') }}
-                    </span>
-                  </span>
-                </div>
-              </div>
-
-              <div class="pc__history-actions">
-                <button class="pc__btn pc__btn--secondary" @click="goHistoryDetail(item)">查看详情</button>
-                <button class="pc__btn pc__btn--primary" @click="goHistoryVisualization(item)">跳转3D</button>
-              </div>
-            </div>
-          </template>
-        </div>
-      </section>
-
       <!-- ===== 预测结果 ===== -->
       <!-- 必须限定在"单条预测"页签内：此前只判 predictionResult，
            切到批量/历史页签时结果面板仍会串出来（问题总账 G-06） -->
-      <section v-if="mode === 'single' && predictionResult" class="pc__panel">
+      <section v-if="props.mode === 'single' && predictionResult" class="pc__panel">
         <div class="pc__card">
           <div class="pc__result-head">
             <div>
@@ -329,6 +260,15 @@
           </div>
 
           <div class="pc__result-actions">
+            <!-- 从候选评估页「送进评价」进来时，才有回写目标 -->
+            <button
+              v-if="sourceCandidate"
+              class="pc__btn pc__btn--primary"
+              :disabled="attaching || attached"
+              @click="handleAttachToCandidate"
+            >
+              {{ attached ? '已回写候选' : (attaching ? '回写中…' : '回写候选') }}
+            </button>
             <!-- 此前这个按钮没有任何 @click，点了完全没反应（问题总账 G-01） -->
             <button
               class="pc__btn pc__btn--secondary"
@@ -350,22 +290,21 @@
           </div>
         </div>
       </section>
-    </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { predictApi, batchApi, type BatchStatus, type PredictResultResponse } from '@/api/predict'
+import { predictApi, batchApi, type BatchStatus } from '@/api/predict'
+import { candidatePredictionApi } from '@/api/candidate'
 import { favoriteApi } from '@/api/favorite'
-import Sidebar from '@/components/Sidebar.vue'
 import SpSelect from '@/components/ui/SpSelect.vue'
 import type { PredictionResult } from '@/types'
 
 const selectedType = ref<'ppi' | 'dti' | 'ddi'>('dti')
 const selectedInputType = ref<'pdb' | 'uniprot' | 'smiles' | 'csv'>('smiles')
-const mode = ref<'single' | 'batch' | 'history'>('single')
+const props = defineProps<{ mode: 'single' | 'batch' }>()
 
 const firstInputValue = ref('')
 const secondInputValue = ref('')
@@ -409,6 +348,17 @@ const route = useRoute()
 // 从靶点库跳转进入时，预填靶点信息
 const prefilledTargetName = ref('')
 
+/** 从候选评估页「送进评价」进来时带的上下文；没有则整块回写逻辑不出现 */
+interface SourceCandidate {
+  candidateId: number
+  projectId: number
+  candidateName?: string
+  projectName?: string
+}
+const sourceCandidate = ref<SourceCandidate | null>(null)
+const attaching = ref(false)
+const attached = ref(false)
+
 const applyTargetFromQuery = () => {
   const targetId = route.query.targetId
   const targetName = route.query.targetName
@@ -418,6 +368,52 @@ const applyTargetFromQuery = () => {
     secondInputValue.value = String(targetId)
     secondInputError.value = ''
     prefilledTargetName.value = targetName ? String(targetName) : ''
+  }
+
+  // 候选上下文：只认 URL 里的 id，结构仍由服务端按候选重新取（不信任前端回传的结构）
+  const qCandidateId = Number(route.query.candidateId)
+  const qProjectId = Number(route.query.projectId)
+  if (Number.isFinite(qCandidateId) && qCandidateId > 0 && Number.isFinite(qProjectId) && qProjectId > 0) {
+    sourceCandidate.value = {
+      candidateId: qCandidateId,
+      projectId: qProjectId,
+      candidateName: route.query.candidateName ? String(route.query.candidateName) : undefined,
+      projectName: route.query.projectName ? String(route.query.projectName) : undefined
+    }
+    const smiles = route.query.smiles
+    if (smiles) {
+      selectedType.value = 'dti'
+      firstInputValue.value = String(smiles)
+      firstInputError.value = ''
+    }
+  }
+}
+
+/** 把当前预测结论挂到来源候选上；同一结果重复点不会产生第二条记录 */
+const handleAttachToCandidate = async () => {
+  const source = sourceCandidate.value
+  const r = predictionResult.value
+  if (!source || !r || attaching.value || attached.value) return
+  attaching.value = true
+  predictError.value = ''
+  try {
+    await candidatePredictionApi.attach(source.candidateId, {
+      algoType: selectedType.value.toUpperCase(),
+      targetId: r.targetId || secondInputValue.value || undefined,
+      targetName: r.targetName || prefilledTargetName.value || undefined,
+      ligandSmiles: r.ligandSmiles || firstInputValue.value || undefined,
+      bindingAffinity: r.bindingAffinity ?? null,
+      confidenceScore: r.confidenceScore ?? null,
+      confidenceLevel: r.confidenceLevel || undefined,
+      interactions: r.interactions ?? undefined,
+      predictResultId: r.id != null ? String(r.id) : undefined,
+      datasetInfo: r.datasetInfo ?? undefined
+    })
+    attached.value = true
+  } catch (error: unknown) {
+    predictError.value = error instanceof Error ? error.message : '回写候选失败'
+  } finally {
+    attaching.value = false
   }
 }
 
@@ -650,6 +646,7 @@ const handlePredict = async () => {
   isLoading.value = true
   predictError.value = ''
   predictionResult.value = null
+  attached.value = false
   
   try {
     let response
@@ -760,59 +757,8 @@ const goToVisualization = () => {
     },
   })
 }
-
-// ================= 预测历史 =================
-const historyList = ref<PredictResultResponse[]>([])
-const historyLoading = ref(false)
-const historyError = ref('')
-
-const loadHistory = async () => {
-  historyLoading.value = true
-  historyError.value = ''
-  try {
-    historyList.value = await predictApi.getPredictHistory()
-  } catch (error: unknown) {
-    historyError.value = error instanceof Error ? error.message : '加载预测历史失败'
-  } finally {
-    historyLoading.value = false
-  }
-}
-
-watch(mode, (val) => {
-  if (val === 'history') {
-    loadHistory()
-  }
-})
-
-const getAlgoTypeText = (algoType?: string): string => {
-  const texts: Record<string, string> = {
-    dti: '药物-靶点 (DTI)',
-    ppi: '蛋白-蛋白 (PPI)',
-    ddi: '药物-药物 (DDI)'
-  }
-  const key = (algoType || '').toLowerCase()
-  return texts[key] || algoType || '-'
-}
-
-const isDti = (algoType?: string): boolean => {
-  return (algoType || '').toLowerCase() === 'dti'
-}
-
-const goHistoryDetail = (item: PredictResultResponse) => {
-  router.push('/result/' + String(item.id ?? ''))
-}
-
-const goHistoryVisualization = (item: PredictResultResponse) => {
-  router.push({
-    path: '/visualization',
-    query: {
-      id: String(item.id ?? ''),
-      targetName: item.targetName ?? '',
-      targetId: item.targetId ?? '',
-    },
-  })
-}
 </script>
+
 
 <style lang="scss" scoped>
 .predict {
@@ -1704,9 +1650,7 @@ const goHistoryVisualization = (item: PredictResultResponse) => {
 <style lang="scss" scoped>
 /* ===================== 预测中心（重构版） ===================== */
 .pc {
-  display: flex;
-  min-height: 100vh;
-  background: $bg-secondary;
+  display: block;
 }
 
 // 宽度与居中由 styles/base.scss 的全局规则统一提供

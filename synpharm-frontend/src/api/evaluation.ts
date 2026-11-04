@@ -129,6 +129,8 @@ export interface CandidateTreeNode {
   pipelineStatus?: string
   originType?: string
   strategyName?: string
+  /** 库条目的名字；直接粘贴 SMILES 的候选为 null */
+  moleculeName?: string | null
   smiles?: string | null
   sequenceHash?: string | null
   totalScore?: number | null
@@ -262,4 +264,38 @@ export function actionLabel(code: string): string {
     SCAFFOLD_HOP: '骨架跃迁'
   }
   return MAP[code] || code
+}
+
+// ---------------------------------------------------------------- 指标目录
+//
+// 「评价体系」要回答「评什么」。指标定义在 metric_definition 表里，
+// 前端不再自己维护一份清单 —— 两份清单迟早对不上。
+
+export interface MetricDefinition {
+  metricCode: string
+  metricName: string
+  /** CONSTRAINT/PROPERTY/DRUGLIKENESS/SAFETY/SYNTHESIS/DIVERSITY/ACTIVITY/SELECTIVITY/DOCKING/ADMET */
+  category: string
+  /** 需求八维度；小分子基础指标为 null */
+  dimension?: string | null
+  valueType: string
+  unit: string
+  /** HIGHER 越大越好 / LOWER 越小越好 / NONE 无好坏方向（只做约束判定） */
+  better: string
+  minValue?: number | null
+  maxValue?: number | null
+  /** 0 表示仅展示、不参与综合分 */
+  weight: number
+  enabled: boolean
+  sortNo: number
+  remark?: string | null
+  /** 空数组表示不限分子形式 */
+  appliesTo: string[]
+}
+
+export const evaluationCatalogApi = {
+  /** 指标目录（含未启用项，便于解释「为什么这次没算这个指标」） */
+  metrics() {
+    return request.get<MetricDefinition[]>('/api/evaluation/metrics')
+  }
 }

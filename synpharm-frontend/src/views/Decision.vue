@@ -31,8 +31,6 @@
         </template>
       </PageHeader>
 
-      <FlowSteps :project-id="projectId" current="decision" />
-
       <p v-if="error" class="banner banner--danger">{{ error }}</p>
       <p v-if="notice" class="banner banner--ok">{{ notice }}</p>
 
@@ -565,7 +563,7 @@ import Sidebar from '@/components/Sidebar.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SpSelect from '@/components/ui/SpSelect.vue'
-import FlowSteps from '@/components/design/FlowSteps.vue'
+import { useFlowStore } from '@/stores/flow'
 import { decisionApi, decisionVetoRuleApi } from '@/api/decision'
 import type {
   Decision,
@@ -591,6 +589,7 @@ import type { ApiError } from '@/utils/request'
 
 const route = useRoute()
 const projectId = Number(route.params.projectId)
+const flowStore = useFlowStore()
 
 const loading = ref(false)
 const creating = ref(false)
@@ -630,6 +629,9 @@ async function loadAll() {
     ])
     project.value = p
     metrics.value = m
+
+    // 侧栏「项目流程」组：决策页也要交代当前项目，否则从这页回第 1/2 步只能靠 URL
+    flowStore.enter(projectId, p?.name ?? '')
 
     const list = await decisionApi.listByProject(projectId)
     decisions.value = list ?? []

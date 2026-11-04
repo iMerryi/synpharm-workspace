@@ -40,6 +40,8 @@
             <span v-if="node.originType === 'REVERT'" class="node__tag">回退新建</span>
           </div>
           <div class="node__meta">
+            <!-- 有名字就显示名字：版本树原来是 SMILES 截断，对非科班用户等于乱码 -->
+            <span v-if="node.moleculeName" class="node__name">{{ node.moleculeName }}</span>
             <span v-if="node.smiles" class="node__smiles" :title="node.smiles">{{ shortSmiles(node.smiles) }}</span>
             <span v-else-if="node.sequenceHash" class="node__hash">seq {{ node.sequenceHash.slice(0, 10) }}…</span>
             <span v-if="node.totalScore !== null && node.totalScore !== undefined" class="node__score">
@@ -218,6 +220,14 @@ function shortSmiles(smiles: string): string {
   &__hash {
     font-family: monospace;
     color: $color-text-soft;
+  }
+
+  &__name {
+    padding: 0 7px;
+    border-radius: $radius-pill;
+    background: $color-brand-soft;
+    font-size: $font-size-xs;
+    color: $color-brand-strong;
   }
 
   &__score {

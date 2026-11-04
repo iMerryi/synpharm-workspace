@@ -18,28 +18,36 @@ const router = createRouter({
     },
     
     {
-      path: '/dashboard',
-      name: 'Dashboard',
-      component: () => import('@/views/Dashboard.vue'),
+      // 评价体系 · 评价工作台：概览 / 单次评价 / 批量评价 / 指标 / 能力边界
+      // 「分子预测」只是这个体系里的一个入口，所以不再是导航上的一级名字
+      path: '/evaluation',
+      name: 'EvaluationSystem',
+      component: () => import('@/views/EvaluationSystem.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      // 评价体系 · 评价记录：结果 / 任务 / 对比
+      path: '/evaluation/records',
+      name: 'EvaluationRecords',
+      component: () => import('@/views/EvaluationRecords.vue'),
+      meta: { requiresAuth: true }
+    },
+    // ===== 以下四条是旧地址，保留重定向：既有深链、书签、其他模块的跳转都不能 404 =====
+    {
+      path: '/dashboard',
+      redirect: () => ({ path: '/evaluation', query: { tab: 'overview' } })
     },
     {
       path: '/predict',
-      name: 'Predict',
-      component: () => import('@/views/Predict.vue'),
-      meta: { requiresAuth: true }
+      redirect: (to) => ({ path: '/evaluation', query: { ...to.query, tab: 'single' } })
     },
     {
       path: '/results',
-      name: 'Results',
-      component: () => import('@/views/Results.vue'),
-      meta: { requiresAuth: true }
+      redirect: (to) => ({ path: '/evaluation/records', query: { ...to.query, tab: 'records' } })
     },
     {
       path: '/tasks',
-      name: 'Tasks',
-      component: () => import('@/views/Tasks.vue'),
-      meta: { requiresAuth: true }
+      redirect: (to) => ({ path: '/evaluation/records', query: { ...to.query, tab: 'tasks' } })
     },
     {
       path: '/tasks/:id',
@@ -48,10 +56,15 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/targets',
-      name: 'Targets',
-      component: () => import('@/views/Targets.vue'),
+      // 数据资产库：取代原「靶点库」。保留 /targets 重定向，避免旧链接与书签 404
+      path: '/library',
+      name: 'Library',
+      component: () => import('@/views/Library.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/targets',
+      redirect: (to) => ({ path: '/library', query: to.query })
     },
     {
       path: '/result/:id?',
