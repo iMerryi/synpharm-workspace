@@ -91,10 +91,13 @@ docker build -t synpharm/fastapi:1.0.0 .
 
 生产部署使用 `synpharm-deploy/docker-compose.yml`（纯镜像引用）。
 
-## 相关仓库
+## 关联模块
 
-| 仓库 | 说明 |
+本引擎是 **`synpharm-workspace` 单仓库**中的一个模块（2026-11-04 起不再拆分为独立仓库）：
+
+| 仓库内模块 | 说明 |
 |------|------|
-| [synpharm-backend](https://github.com/Ljz4777/synpharm-backend) | Spring Boot 业务后端（本服务的唯一调用方） |
-| [synpharm-frontend](https://github.com/Ljz4777/synpharm-frontend) | Vue 3 前端 |
-| [synpharm-deploy](https://github.com/Ljz4777/synpharm-deploy) | Docker 编排、一键脚本与项目文档 |
+| `synpharm-predict` | 预测域 Java 服务，本引擎的**唯一调用方**（`/api/predict/**`） |
+| `synpharm-gateway` | 边缘网关，对外唯一入口 |
+| `synpharm-frontend` | Vue 3 前端 |
+| `synpharm-deploy` | Docker 编排、SQL 与项目文档 |

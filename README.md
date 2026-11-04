@@ -413,7 +413,7 @@ mvn -o -pl synpharm-core test     # 单模块（425 个）
 | [`synpharm-deploy/docs/design/detailed/`](./synpharm-deploy/docs/design/detailed) | 数据层 / 接口层 / 实现级详细设计 + 三阶段业务设计（需求分析 / 生成 / 编辑 / 决策 / 评价体系 / 数据资产库） |
 | [`synpharm-deploy/docs/conventions/`](./synpharm-deploy/docs/conventions) | 接口与错误码 / 数据与配置 / 事务消息与安全 / 工程规范 |
 | [`synpharm-deploy/docs/deploy/`](./synpharm-deploy/docs/deploy) | 部署与容器化指南、上线流程 |
-| [`synpharm-deploy/docs/development/`](./synpharm-deploy/docs/development) | 问题总账、未修复功能清单、开发规范 |
+| [`synpharm-deploy/docs/development/`](./synpharm-deploy/docs/development) | 未修复功能清单、开发规范与工程指南、测试数据清单 |
 | [`synpharm-deploy/docs/uml/`](./synpharm-deploy/docs/uml) | 业务流程与设计域 UML（Mermaid 内嵌） |
 | [`synpharm-frontend/README.md`](./synpharm-frontend/README.md) | 前端构建与页面说明 |
 | [`synpharm-fastapi/README.md`](./synpharm-fastapi/README.md) | 算法引擎接口与模型 |

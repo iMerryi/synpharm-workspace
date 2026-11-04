@@ -1,6 +1,6 @@
 ﻿# SynPharm 文档中心
 
-> **全部文档的唯一入口** ｜ 最后更新：2026-10-14
+> **全部文档的唯一入口** ｜ 最后更新：2026-11-04
 > 本文件只做两件事：① 告诉你**该看哪份**；② 告诉你**以哪份为准**。
 
 ---
@@ -10,21 +10,17 @@
 | 我要… | 看这份 | 备注 |
 |---|---|---|
 | 了解项目是什么 | [`SynPharm项目书.md`](./SynPharm项目书.md) | 唯一的产品/背景说明 |
-| 新人入门（系统怎么跑） | [`architecture/架构设计文档.md`](./architecture/架构设计文档.md) | 含架构图 + 5 张流程时序图 |
+| **系统怎么跑起来** | [`../../README.md`](../../README.md) | **最新**：6 服务清单、启动步骤、网关路由、排障 |
 | **看业务流程全貌** | [`uml/业务流程.md`](./uml/业务流程.md) | **7 张图内嵌 Mermaid，打开即可看** |
 | **看设计域 UML** | [`uml/设计域.md`](./uml/设计域.md) | **13 张图内嵌 Mermaid**（含 33 张表数据模型、5 个状态机） |
-| 做微服务拆分 | [`architecture/SpringCloud微服务重构方案.md`](./architecture/SpringCloud微服务重构方案.md) | 最新（2026-10-14） |
-| **跑微服务骨架（Nacos / 网关 / auth / design）** | [`../../README.md`](../../README.md) | **阶段 0、1、2A 已实施**：模块结构、启动步骤、排障 |
+| 做微服务拆分 | [`architecture/SpringCloud微服务重构方案.md`](./architecture/SpringCloud微服务重构方案.md) + [`architecture/微服务拆分执行记录.md`](./architecture/微服务拆分执行记录.md) | 方案 + 实测执行记录 |
+| 了解整体架构（含时序） | [`architecture/架构设计文档.md`](./architecture/架构设计文档.md) | ⚠️ 架构图停留在单体阶段，5 张时序图仍有效 |
 | 写代码前确认规范 | [`conventions/README.md`](./conventions/README.md) | 接口/错误码/配置/数据/事务/安全/工程 |
 | 开发设计域（干实验工作台） | [`design/detailed/README.md`](./design/detailed/README.md) | 可直接实施的层级 |
-| 开发预测模块 | [`modules/predict/`](./modules/predict/) | 见 §2 权威裁决 |
-| 开发账号/认证 | [`modules/auth/用户认证模块技术设计文档.md`](./modules/auth/用户认证模块技术设计文档.md) | |
-| 查还剩什么问题没修 | [`development/未修复功能清单.md`](./development/未修复功能清单.md) | 一页摘要（**详版在总账**） |
-| 查某个问题的完整证据与方案 | [`development/SynPharm问题总账与整改方案（整合版）.md`](./development/SynPharm问题总账与整改方案（整合版）.md) | 自称"唯一权威问题总账" |
+| 查还剩什么问题没修 | [`development/未修复功能清单.md`](./development/未修复功能清单.md) | 一页摘要 |
 | 提代码 / 提交信息 / 跑测试 | [`development/开发规范与工程指南.md`](./development/开发规范与工程指南.md) | Git 分支、提交、测试命令 |
-| 查接口契约 | [`design/detailed/openapi.yaml`](./design/detailed/openapi.yaml)（设计域）<br>[`api/接口文档.md`](./api/接口文档.md)（**仅已实现**的 40+ 接口） | |
+| 查接口契约 | [`design/detailed/openapi.yaml`](./design/detailed/openapi.yaml) | 83 路径 / 99 操作；运行期以 Knife4j 在线文档为准 |
 | 部署 / 上线 | [`deploy/`](./deploy/) | 部署与容器化、上线流程 |
-| 做二阶段（多智能体） | [`development/第二阶段开发文档-多智能体协同与智能体闭环.md`](./development/第二阶段开发文档-多智能体协同与智能体闭环.md) | |
 
 ---
 
@@ -32,31 +28,33 @@
 
 > 同一主题往往有多份文档（上游基线 / 细化版 / 已被取代）。**这张表是唯一裁决依据。**
 
-| 主题 | ✅ 权威（以此为准） | ⚠️ 已被取代并**已删除**的文档 |
+| 主题 | ✅ 权威（以此为准） | ⚠️ 已失效 / 已删除 |
 |---|---|---|
 | 项目背景 | `SynPharm项目书.md` | — |
-| 系统架构总览 | `architecture/架构设计文档.md` | `SynPharm项目整体架构培训文档.md`（派生教学版） |
-| **微服务拆分** | `architecture/SpringCloud微服务重构方案.md`（方案 + 阶段 0/1/2A 记录）<br>`../../README.md`（工程与启动） | — |
+| **系统架构总览** | `../../README.md`（6 服务 / 网关 / 数据所有权）<br>`architecture/架构设计文档.md`（**仅时序图有效**，架构图已过期） | `SynPharm项目整体架构培训文档.md`（派生教学版） |
+| **微服务拆分** | `architecture/SpringCloud微服务重构方案.md`（方案）+ `architecture/微服务拆分执行记录.md`（实测） | — |
 | **工程规范** | `conventions/`（5 份） | — |
-| **业务流程 UML** | `uml/业务流程.md`（Mermaid 内嵌，7 张） | PlantUML 旧版 7 张 + 原 README（**已删除**） |
-| **设计域（干实验）** | `design/detailed/`（7 份 + `openapi.yaml`）<br>`uml/设计域.md`（13 张图） | `AI药物分子设计平台-详细设计书.md`（上游基线）<br>`设计域模块-00~07`（上游基线，共 8 份） |
-| **预测模块** | `modules/predict/`（6 份） | `预测核心模块技术设计文档-重复.md`（前 4 章与 `modules/predict` 逐字重复） |
-| 账号与认证 | `modules/auth/用户认证模块技术设计文档.md` | `用户认证模块开发指南.md`（开发操作版，从属同一主题） |
-| **问题与整改** | `development/SynPharm问题总账与整改方案（整合版）.md` | `SynPharm后端修复说明文档.md`（一次性，已被总账收录） |
-| **二阶段 / 智能体** | `development/第二阶段开发文档-多智能体协同与智能体闭环.md` | `二阶段-已被取代.md`（含阶段一内容） |
-| 接口契约 | `design/detailed/openapi.yaml`（设计域）<br>`api/接口文档.md`（**仅已实现**接口） | — |
+| **业务流程 UML** | `uml/业务流程.md`（Mermaid 内嵌，7 张） | PlantUML 旧版 7 张 |
+| **设计域（干实验）** | `design/detailed/`（12 份 + `openapi.yaml`）<br>`uml/设计域.md`（13 张图） | `AI药物分子设计平台-详细设计书.md`（上游基线）<br>`设计域模块-00~07`（上游基线，共 8 份） |
+| 接口契约 | `design/detailed/openapi.yaml` | `api/接口文档.md`（2026-11-04 删除，单体时代） |
 | 部署 | `deploy/`（2 份） | — |
+| **问题清单** | `development/未修复功能清单.md` | `SynPharm问题总账与整改方案（整合版）.md`（2026-11-04 删除，基于已删的 `synpharm-backend`） |
+| 预测 / 认证模块 | 对应服务源码 + `../../README.md` | `modules/predict/`（6 份）、`modules/auth/`（2 份）—— 2026-11-04 删除，单体时代 |
+| 二阶段 / 智能体 | — | `第二阶段开发文档-多智能体协同与智能体闭环.md`（2026-11-04 删除，未立项） |
 | 历史操作记录 | — | `从GitHub覆盖现有代码操作记录.md` |
 
-> `development/未修复功能清单.md` **不是重复**，它是总账的**摘要视图**（文首已声明），需与总账同步维护。
+> 文档数量已从 44 份收敛到 32 份。2026-11-04 删除的 13 份均可从 git 历史恢复（见 §4.2）。
+
+> `development/未修复功能清单.md` 现在是**唯一**的问题清单 —— 原「问题总账」已于 2026-11-04 删除，
+> 新增问题直接追加到本清单，不再另建总账。
 
 ---
 
 ## 3. 新人入门（按顺序读 3 份）
 
 ```
-① SynPharm项目书.md                        15 分钟  项目是什么、给谁用
-② architecture/架构设计文档.md              30 分钟  系统怎么跑（含架构图 + 流程时序）
+① ../../README.md（仓库根）                 15 分钟  系统由哪些服务组成、怎么起来
+② SynPharm项目书.md                        15 分钟  项目是什么、给谁用
 ③ uml/业务流程.md                          20 分钟  业务流程全貌（7 张图，标注已实现/未实现）
 ```
 
@@ -64,9 +62,8 @@
 
 | 角色 | 继续读 |
 |---|---|
-| 后端（预测） | [`modules/predict/`](./modules/predict/) → [`api/接口文档.md`](./api/接口文档.md) |
 | 后端（设计域） | [`design/detailed/README.md`](./design/detailed/README.md) → [`conventions/`](./conventions/) |
-| 后端（账号） | [`modules/auth/用户认证模块技术设计文档.md`](./modules/auth/用户认证模块技术设计文档.md) |
+| 后端（预测 / 认证） | 对应服务源码 + [`conventions/`](./conventions/) |
 | 前端 | [`design/detailed/02-接口层详细设计.md`](./design/detailed/02-接口层详细设计.md) + [`openapi.yaml`](./design/detailed/openapi.yaml) |
 | 运维 | [`deploy/`](./deploy/) |
 
@@ -79,40 +76,47 @@
 | 目录 | 文件数 | 内容 |
 |---|---|---|
 | `./` 根 | 2 | 项目书、本索引 |
-| `api/` | 1 | 接口文档（已实现部分） |
-| `architecture/` | 2 | 架构设计文档、微服务重构方案 |
+| `architecture/` | 3 | 架构设计文档、微服务重构方案、微服务拆分执行记录 |
 | `conventions/` | 5 | 规范总则、接口与错误码、数据与配置、事务消息与安全、工程 |
 | `deploy/` | 2 | 部署与容器化指南、上线流程详细版 |
-| `design/detailed/` | 8 | 设计域细化设计 7 份 + `openapi.yaml` |
-| `development/` | 5 | 问题总账、未修复清单、开发规范、二阶段、测试数据清单 |
-| `modules/auth/` | 2 | 认证模块技术设计 + 开发指南 |
-| `modules/predict/` | 6 | 后端 / FastAPI / 批量 / 数据流 / 算法与集成 / 输入解析器 |
+| `design/detailed/` | 14 | 设计域细化设计 12 份 + `openapi.yaml` + 索引 |
+| `development/` | 3 | 未修复清单、开发规范、测试数据清单 |
 | `uml/` | 3 | 业务流程（7 张 Mermaid 内嵌）、设计域（13 张 Mermaid 内嵌）、UML 索引 |
 
-### 4.2 已删除文档（**备份可恢复**）
+### 4.2 已删除文档
 
-2026-10-14 精简时删除了 **36 份**已被取代的文档（分两批）。
+两次清理：**2026-10-14**（36 份已被取代的文档）与 **2026-11-04**（13 份单体时代作废文档）。
+文档总数 **44 → 32**。
 
-> ⚠️ **本工作区不是 git 仓库**，删除不可从版本控制恢复。因此**删除前均已备份**：
+> **2026-11-04 批次可从 git 历史恢复**（此时仓库已是 git 仓库）：
+>
+> ```bash
+> git log --diff-filter=D --name-only -- synpharm-deploy/docs/   # 找到删除提交
+> git show <commit>^:<原路径> > <新路径>                          # 取回原文
+> ```
+>
+> 2026-10-14 批次删除时工作区还不是 git 仓库，备份文件已移出仓库（不占体积），
+> 原位置 `d:\synpharm-workspace\_synpharm-docs-*.zip` 现为空。
 
-```
-备份 1（原归档区 23 份）：
-  d:\synpharm-workspace\_synpharm-docs-archive-backup-20261014.zip     190 KB ｜ 23 条目
-备份 2（PlantUML 图 13 张）：
-  d:\synpharm-workspace\_synpharm-docs-plantuml-backup-20261014.zip     29 KB ｜ 13 条目
+**2026-11-04 · 删除明细（13 份 / 约 512 KB / 12,401 行）**
 
-恢复命令：
-  Expand-Archive -Path <上述 zip> -DestinationPath <目标目录>
-```
+| 文档 | 体量 | 作废原因 |
+|---|---|---|
+| `api/接口文档.md` | 9.6 KB | 2026-08-07 单体时代；`design/detailed/openapi.yaml`（83 路径）已完全覆盖 |
+| `development/SynPharm问题总账与整改方案（整合版）.md` | 119 KB | 自称基于 `synpharm-backend` 133 个 Java 文件全量通读，该目录 2026-10-19 已删除 |
+| `development/第二阶段开发文档-多智能体协同与智能体闭环.md` | 37 KB | 适用范围写「三端 `synpharm-backend`」；多智能体从未立项 |
+| `design/detailed/00-设计评审与勘误.md` | 21 KB | 评审对象 `AI药物分子设计平台-详细设计书.md` 已不存在 |
+| `modules/auth/`（2 份） | 123 KB | 单体时代模块文档，auth 已独立成服务 |
+| `modules/predict/`（6 份） | 202 KB | 单体时代模块文档，predict 已独立成服务，端口与启动方式全变 |
 
-**备份 1 · 归档区（23 份）**
+**备份 1 · 归档区（23 份）**（备份文件已移出仓库）
 
 | 类别 | 份数 | 说明 |
 |---|---|---|
 | 上游基线 | 9 | 设计书 + 设计域模块 00~07（已被 `design/detailed/` 取代） |
 | PlantUML 旧版 | 8 | 业务流程图的 PlantUML 版（已被 Mermaid 版取代） |
 | 派生版本 | 1 | 架构培训文档 |
-| 重复内容 | 1 | 预测核心模块（与 `modules/predict/` 逐字重复） |
+| 重复内容 | 1 | 预测核心模块（与 `modules/predict/` 逐字重复，该目录也已于 2026-11-04 删除） |
 | 已被取代 | 1 | `二阶段.md`（含阶段一内容） |
 | 一次性记录 | 2 | 后端修复说明、GitHub 覆盖记录 |
 | 索引 | 1 | 原 `_archive/README.md` |
@@ -139,9 +143,9 @@
 | 新增文档 | **必须**在本文件 §4 登记，并在 §1/§2 建立入口或裁决 |
 | 主题冲突 | 先查 §2；已有权威则**追加到权威文档**，不新建 |
 | 文档头 | 含：版本 / 日期 / 状态 / 适用范围 / 上游依据 |
-| 被取代的文档 | **先备份再删除**（本工作区无 git，删除不可恢复）。删除后在本文件 §4.2 登记，并把指向它的引用降级为纯文本 |
+| 被取代的文档 | **先确认无引用再删除**（仓库已是 git 仓库，删除后可从历史恢复）。删除后在本文件 §4.2 登记，并把指向它的引用降级为纯文本 |
 | 图 | **一律内嵌 Mermaid**（GitHub / VS Code 直接渲染，无需插件）。**项目已不使用 PlantUML** |
-| 校验收尾 | ① Markdown 相对链接**全部可达**且**锚点有效**（当前 305 处，0 断链）；② 内嵌 Mermaid 语法可解析（用 `mermaid` 官方解析器逐块 `parse`，当前 61/61 通过） |
+| 校验收尾 | ① Markdown 相对链接**全部可达**且**锚点有效**（当前 212 处，0 断链）；② 内嵌 Mermaid 语法可解析（`docs/` 下 48 块） |
 
 ---
 
@@ -154,3 +158,4 @@
 | v3.0.0 | 2026-10-14 | 删除归档区 23 份（已备份）；**设计域 13 张 UML 也改为 Mermaid 内嵌**并删除全部 `.puml`；项目改为**纯 Mermaid** 图载体 |
 | v3.0.1 | 2026-10-14 | 收尾：修复 8 处此前漏检的断链（合并后遗留的 `data/`、`algorithm/` 子目录引用改为**段内锚点**）并新增**锚点有效性**校验；上游 A-7 / R-16「两张 puml 无法渲染」更正为**渲染命令缺 `-charset UTF-8`**（勘误已失效）；清除残留的 PlantUML 提法 |
 | v3.0.2 | 2026-10-14 | 阶段 2A 落地后同步入口状态：微服务骨架提及 auth / design 两个已落地服务；方案文档补 §8.3.1（跨 schema 外键实测 6 条）与 §11.3（阶段 2A 实现说明） |
+| v4.0.0 | 2026-11-04 | **清理单体时代文档**：删除 5 类 13 份（`api/接口文档.md`、问题总账 119KB、二阶段 37KB、设计评审勘误、`modules/` 9 份）；文档总数 44 → 32；§1/§2/§3/§4 全部改为指向现存文档或降级为纯文本；新增「架构图已过期」等时效标注 |

@@ -82,12 +82,15 @@ docker build -t synpharm/frontend:1.0.0 .
 
 生产部署使用 `synpharm-deploy/docker-compose.yml`，容器内 Nginx 监听 8080，`/api` 反代至后端服务。
 
-## 相关仓库
+## 关联模块
 
-| 仓库 | 说明 |
+本前端是 **`synpharm-workspace` 单仓库**中的一个模块（2026-11-04 起不再拆分为独立仓库）：
+
+| 仓库内模块 | 说明 |
 |------|------|
-| [synpharm-backend](https://github.com/Ljz4777/synpharm-backend) | Spring Boot 业务 API（本前端的调用对象） |
-| [synpharm-fastapi](https://github.com/Ljz4777/synpharm-fastapi) | FastAPI 算法引擎（由后端转发调用） |
-| [synpharm-deploy](https://github.com/Ljz4777/synpharm-deploy) | Docker 编排、一键脚本与项目文档 |
+| `synpharm-gateway` | 边缘网关，本前端所有 `/api` 请求的唯一入口 |
+| `synpharm-core` 等 Java 服务 | Spring Boot 业务 API（经网关转发，本前端不直连） |
+| `synpharm-fastapi` | FastAPI 算法引擎（由 Java 服务转发调用） |
+| `synpharm-deploy` | Docker 编排、SQL 与项目文档 |
 
 > 接口契约：前端类型由后端 Knife4j 导出的 OpenAPI 生成（`openapi-typescript`），联调时请以后端 `/v3/api-docs` 为准。

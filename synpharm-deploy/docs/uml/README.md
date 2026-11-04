@@ -43,7 +43,7 @@
 
 ## 4. 历史勘误：上游 A-7 / R-16 判断有误
 
-[`../design/detailed/00-设计评审与勘误.md`](../design/detailed/00-设计评审与勘误.md) 的 **R-16** 与 [`../design/detailed/README.md`](../design/detailed/README.md) 的待决策项 **A-7** 判定 `02-component.puml` / `07-activity.puml`「**无法渲染**，建议**重写**」。**该判断是错的，无需重写。**
+`../design/detailed/00-设计评审与勘误.md` 的 **R-16** 与 [`../design/detailed/README.md`](../design/detailed/README.md) 的待决策项 **A-7** 判定 `02-component.puml` / `07-activity.puml`「**无法渲染**，建议**重写**」。**该判断是错的，无需重写。**
 
 | 项 | 实际情况 |
 |---|---|
