@@ -22,6 +22,12 @@
 
       </header>
 
+      <!-- 从侧栏直接进入时没有上下文，这里明确说明画的是示例结构，避免误认 -->
+      <div v-if="isDemo" class="visualization__demo-note">
+        当前为<strong>示例结构</strong>（{{ targetName }}）。从「评价记录」打开某条预测结果，
+        可以看到该结果的真实靶点结构、亲和力与相互作用。
+      </div>
+
       <!-- 极简上下文：明确当前展示的是哪条靶点的结构 -->
       <div class="visualization__context">
         <span class="visualization__context-item">
@@ -73,7 +79,7 @@
           class="visualization__context-hint visualization__context-hint--error"
           :title="resultError"
         >
-          预测结果加载失败，已使用兜底数据
+          {{ resultError }}，当前展示的是示例结构
         </span>
       </div>
 
@@ -523,10 +529,17 @@ async function loadResult(): Promise<void> {
   } catch (err) {
 
     apiResult.value = null
+    // 归属校验失败后端一律返回 404（不返回 403，避免暴露资源是否存在）。
+    // 这里必须说清楚「不是你的数据」，否则兜底结构会让人误以为看到了自己的结果。
+    const status = (err as { status?: number }).status
     resultError.value =
-      err instanceof Error
-        ? err.message
-        : '加载预测结果失败'
+      status === 404
+        ? '该预测结果不存在或不属于当前账号'
+        : status === 401 || status === 403
+          ? '没有权限查看该预测结果'
+          : err instanceof Error
+            ? err.message
+            : '加载预测结果失败'
 
   } finally {
 
@@ -552,14 +565,29 @@ watch(
  * Basic Info
  * ========================================================= */
 
+/** 从侧栏裸进（无预测结果、也没带靶点参数）时的示例靶点 */
+const DEMO_TARGET_NAME = 'EGFR'
+
 const targetName = computed(() => {
 
   return (
     apiResult.value?.targetName ||
     (route.query.targetName as string) ||
-    'Unknown'
+    // 没有上下文时落到内置示例，否则页面只剩「未匹配到结构」的空状态，
+    // 用户看不出这个页面能做什么。
+    DEMO_TARGET_NAME
+
   )
 
+})
+
+/**
+ * 是否在展示示例结构。
+ * 只有「既没有预测结果、也没显式带靶点参数」时才算 —— 那种情况下
+ * 页面上的结构不是用户的数据。
+ */
+const isDemo = computed(() => {
+  return !apiResult.value && !route.query.id && !route.query.targetName
 })
 
 
@@ -1025,6 +1053,24 @@ const getInteractionTypeName =
 /* =========================================================
  * Context（画布上方的极简上下文：当前展示的是谁的结构）
  * ========================================================= */
+
+.visualization__demo-note {
+  margin-bottom: $spacing-md;
+  padding: $spacing-sm $spacing-md;
+
+  font-size: $font-size-sm;
+  line-height: 1.6;
+  color: $color-text-soft;
+
+  background: $color-brand-softer;
+  border: 1px solid $color-border-soft;
+  border-radius: $radius-control;
+
+  strong {
+    color: $color-text;
+    font-weight: 600;
+  }
+}
 
 .visualization__context {
   display: flex;
