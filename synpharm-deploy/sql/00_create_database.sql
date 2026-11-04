@@ -26,11 +26,28 @@ CREATE DATABASE IF NOT EXISTS synpharm_predict
     COLLATE utf8mb4_unicode_ci;
 
 -- ---------- synpharm_core ----------
--- 归属：synpharm-core（主业务）——2026-10-22 服务收敛
--- 表：原 design(19) + asset(1) + platform(1) = 21 张
--- 为什么合并：主业务四段（需求分析/生成/编辑/决策）全在设计域，asset 与 platform
---   本就是它的支撑件。三者同库后可以建跨域外键（原先因跨 schema 禁止而无法建立）。
+-- 归属：synpharm-core（主业务：需求分析 / 生成 / 编辑 / 决策）
+-- ⚠️ 2026-11-04 起本库**只**放设计域表：file_asset 已随 synpharm-asset 迁出、
+--   design_tool 已随 synpharm-platform 迁出（见下面两个库）。
 CREATE DATABASE IF NOT EXISTS synpharm_core
+    DEFAULT CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+-- ---------- synpharm_platform ----------
+-- 归属：synpharm-platform（平台治理：工具注册表 + 能力探测）
+-- 表：design_tool
+-- 独立理由：与设计域双向零 import，但变更节奏完全不同（引擎加一个算子就要动它），
+--   且它的定时能力探测不该占设计域的线程与连接。
+CREATE DATABASE IF NOT EXISTS synpharm_platform
+    DEFAULT CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+-- ---------- synpharm_asset ----------
+-- 归属：synpharm-asset（文件资产：内容寻址 + 引用计数）
+-- 表：file_asset
+-- 独立理由：唯一需要大文件上传的服务。合并期设计域被迫一起放开 200MB multipart 上限，
+--   拆开后设计域回到 20MB。存储后端将来换 S3/MinIO 时也只影响这一个服务。
+CREATE DATABASE IF NOT EXISTS synpharm_asset
     DEFAULT CHARACTER SET utf8mb4
     COLLATE utf8mb4_unicode_ci;
 

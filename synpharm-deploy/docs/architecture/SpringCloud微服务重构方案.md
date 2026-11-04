@@ -73,6 +73,17 @@
 
 ## 3. 服务清单
 
+### 3.0 当前实况（2026-11-04）
+
+> 本章 §3.1 是**最初的目标架构**（5 服务）。实际演化走了一个来回：
+> 2026-10-22 把 design / asset / platform 收敛成 `synpharm-core`（见 §11.3 / v1.12.0），
+> **2026-11-04 又拆了回去**，并进一步把设计域按子域切分。
+>
+> 当前在跑的是 **6 个服务**：`gateway` `auth` `predict` `core`(设计域) `platform` `asset`。
+> 目标态 12 个服务的清单、每个服务的表/端点归属、要删的跨服务外键、执行顺序与
+> 实测记录，全部在 [`微服务拆分执行记录.md`](./微服务拆分执行记录.md)。
+> 本章后续小节保留原始设计，与执行记录冲突时**以执行记录为准**。
+
 ### 3.1 目标架构
 
 ```mermaid
@@ -402,7 +413,7 @@ spring:
 
 | 阶段 | 内容 | 验证点 | 回滚方式 | 状态 |
 |---|---|---|---|---|
-| **0** | Nacos + Gateway + `common` 三件套；单体注册 Nacos；网关全量 `/api/**` → `lb://synpharm-backend` | 前端全部页面 + 登录 / 预测 / 批量 / 结果 / 收藏全绿（**零行为变更**） | nginx 改回直连 `backend:8080` | ✅ **已实施**（见 [`synpharm-cloud/README.md`](../../../synpharm-cloud/README.md)） |
+| **0** | Nacos + Gateway + `common` 三件套；单体注册 Nacos；网关全量 `/api/**` → `lb://synpharm-backend` | 前端全部页面 + 登录 / 预测 / 批量 / 结果 / 收藏全绿（**零行为变更**） | nginx 改回直连 `backend:8080` | ✅ **已实施**（见 [`README.md`](../../../README.md)） |
 | **1** | 抽 auth（独立 schema，迁 `sys_user` / `sys_login_log`）；JWT 校验上移网关并透传 `X-User-Id` / `X-Role`；单体改读 header | 登录 / 注册 / 验证码 / 改密 / 邮箱 / 登录日志 / 注销 + 所有鉴权接口 | 网关路由回退单体；数据双写期可回灌 | ✅ **已实施**（见 §11.2） |
 | **2** | design-service 直接新落地（建 `synpharm_design`，跑 `11_`~`38_`，去掉 6 条跨 schema 外键） | **2A**：服务启动 + 注册 Nacos + health + DB 边界；**2B**：79 端点契约 + `../modules/design/` 验收项 + 前端 `VITE_DESIGN_MOCK=false` | 前端切回 mock；2A 阶段单体仍持有全部设计域表，无回滚需求 | 🚧 **2A 已实施**（见 §11.3）；**2B 实现中：39/99 端点**（见 §11.4） |
 | **3** | asset 落地；design / predict 文件读写改走 asset | 上传 / 下载 / 批量结果 / 结构文件；历史本地卷数据登记 | 保留本地卷并回退配置 | 🚧 **骨架 + 数据层已落地**（schema/账号/实体/3 个内网端点；引用方尚未改走 asset，`presign` 待定存储后端） |
@@ -414,7 +425,7 @@ spring:
 
 ### 11.1 阶段 0 实现说明（v1.1.0 补充）
 
-新增工程 [`synpharm-cloud`](../../../synpharm-cloud)（Maven 多模块），阶段 0 只含两个模块：
+新增 Maven 多模块工程（当时独立成 `synpharm-cloud/`；**2026-11-04 已扁平化到仓库根**，见 §3.0），阶段 0 只含两个模块：
 
 | 模块 | 内容 |
 |---|---|
@@ -936,6 +947,7 @@ java.lang.NoSuchMethodError: 'java.util.Set org.springframework.http.HttpHeaders
 | v1.10.0 | 2026-10-17 | **技术债收口：H-25 / H-26 / H-27 三项**。① **H-27（安全面）**：`design /api/design/library` 与 `platform /api/design/capabilities`、`/tools`、`/tools/{id}` 在服务内**不校验登录**，只靠网关验签 —— 同网络内绕过网关直连（不带任何身份头）能直接读到知识库与工具注册表（修复前实测 200）。修法：AppService 读入口显式 `CurrentUser.requireUserId()`。**`capabilities()` 与 `registry()` 刻意不加** —— 它们被 `InternalToolController` 以服务间调用复用、那条路径没有用户身份，塞进去会直接打断 design 的命令面板；公开端点的校验因此放在 **controller 层**并注释说明。**实测 13 项全通过**：直连三端点均 401、经网关已登录的 7 个读端点仍 200（未误伤）、`/internal/tools/registry` 仍 200。② **H-25（数据）**：种子 `capability_key` 的 `pockets`/`generation` 改为引擎键 `p2rank`/`crem`（原本靠 v1.6.0 的 `requires_engine` 兜底 + WARN 才行为正确）。种子与线上库同步；`engines` 直命与「命中不回退」两条路径均有单测覆盖。③ **H-26（数据）**：种子管理员注释称口令为 `123456`，实测 BCrypt 校验为 **false**，且该口令本身也过不了强度校验 —— 该账号**无论如何登不进去**。修法：`password` 置 **NULL**，该行仅作 `predict_task`/`predict_result` 的 `user_id=1` 引用锚点；这也顺带消掉 **B-02「弱口令管理员随部署自动创建」**。种子头部写明创建管理员的正确路径（注册 + 提权）。④ 全 reactor **352 单测**全绿（gateway 17 + design **254** + platform **22** + predict 59），新增 3 个守卫用例 |
 | v1.11.0 | 2026-10-17 | **design 2B 第 14 组续：排行榜（`GET /api/design/projects/{id}/leaderboard`）**。① **双分页模式**：默认偏移分页返回 `total/page/pageSize/hasNext`；带 `afterScore`+`afterId` 时切键集分页，返回 `nextAfterScore/nextAfterId` 且 **`total` 为 null** —— 规范 §4.2 明确要求键集模式无 `total`，因为「每次翻页 COUNT(*)」正是该规则要避免的事，所以刻意不回填而不是"填了但不准"。② **偏移 > 1000 硬拒绝**：409 `USE_CURSOR` 引导改用键集。性能悬崖最怕"能跑但慢"—— 悄悄退化比明确拒绝更难被发现。③ **`sortBy` 白名单**：`total_score`（默认）或**本轮实际启用过的 metricCode**；即使过了白名单，拼进 `ORDER BY` 前仍过 `^[A-Z][A-Z0-9_]{0,39}$` —— 名字最终进 SQL 文本，参数化救不了 ORDER BY。④ **红线 R1 两个字段**：`weightsSnapshot` 取自 `evaluation_run.metric_weights`（**不是**指标定义里的默认权重，两者刻意做得不同以证明快照优先）；`redistributed` 由「本页完全没出现的启用指标」推导，原因取失败样本的 `error_msg`、权重取快照值。⑤ **自查发现并修掉一个真 N+1**：`describeMetricFailure` 起初是「每个缺失指标查一次」，本轮启用 8 个指标全失败就是 8 次额外查询 —— 而这恰好只在"大量指标失败"时触发，正是最不该放大查询的时候；改为一次批量查。现在结果表查询次数固定为 2（填充 1 + 原因 1），与页大小、缺失指标数无关，有单测钉住。⑥ **`sortBy=metricCode` 的语义**：只排「算了该指标」的候选（无值无从排名），故走 `evaluation_result` 而非 `candidate_molecule`；实测 `total=4`（5 个候选里 1 个未评分被排除）。⑦ **实测 12 项全通过**（fixture：5 候选 / 12 结果，含同分与未评分）：排序与 NULL 排最后、权重快照、`redistributed` 原因「全部候选计算失败：vina 未安装」、409 `USE_CURSOR`、400 白名单、`sortBy=指标码` 的 asc 排序、键集模式无 `total` 且有游标、他人项目 404、缺 `roundId` 400。fixture 已彻底删除。⑧ 全 reactor **364 单测**全绿（gateway 17 + design **266** + platform 22 + predict 59），新增 12 |
 | v1.12.0 | 2026-10-22 | **服务收敛：design + asset + platform → synpharm-core**（决策 A′/B′ 见 §14.1）。① **模块**：三模块合并，`com.synpharm.{design,asset,platform}` 原包名保留，新启动类合并 discovery + scheduling + 三包 MapperScan。② **跨服务调用消除**：删 `ToolRegistryClient`/`ToolRegistryEntry`/`InternalToolController`，改进程内 `ToolAppService.registry()`。③ **网关 4 条路由**（auth / core / predict / core-system），`platform-design-tools` 前置路由消失。④ **数据**：`synpharm_core` 21 表 + 单账号；24 个 SQL 的 `USE` 改写、`00_create_database.sql`/`00_create_accounts.sh` 同步；`26~29_` 的 `agent_*` 属 predict 域未动。⑤ **编排**：dev 13→11 服务、prod 单 core；Dockerfile COPY 列表同步。⑥ **验证**：6 模块编译 SUCCESS、**单测 364/364**、**E2E 247 项全绿**（2b 18 + target 52 + h27 14 + job 38 + experiment 48 + report 77）、Nacos 服务数 **6→4**、`algorithm-health` 23ms。⑦ **保留**：三个旧库 7 天、备份 zip + db dump。⑧ **已知环境问题（A 类，非本次引入）**：`docker pull eclipse-temurin:17-jre-jammy` 持续报 `failed size validation`，导致 prod 镜像构建无法在本机验证；Dockerfile 已通过静态核对（7 个 COPY 源全部存在、5 个模块全覆盖、finalName 与期望 jar 名一致） |
+| v1.13.0 | 2026-11-04 | **撤销 v1.12.0 的收敛，platform / asset 重新独立**（执行记录见 [`微服务拆分执行记录.md`](./微服务拆分执行记录.md)）。① 新建 `synpharm-platform`(8084) / `synpharm-asset`(8085) 两个模块，各占一个 schema；② 新建 `synpharm-api` 放服务间契约，「内部令牌 + 用户身份」的 Feign 头由自动装配统一注入；③ 路径收敛为 `/api/platform/**`，旧的 `/api/design/tools|capabilities` 与 `/api/system/**` 变为 404；④ 设计域 `/api/design/commands` 改为 Feign 读 `/internal/tools/registry`，platform 停机时返回 **503** 而非空清单。实测：9 模块编译通过、单测 511（core 425 / platform 22 / api 5 / predict 59）、Nacos 6 服务、14 套 e2e 410 项全绿。**记录两个静态扫描发现不了的隐式耦合**：design 的 `ChemistryClient` 注入 platform 定义的 `WebClient` Bean；design 的 `WorkspaceAppServiceImpl` import 了 platform 的 `ToolAppService` |
 
 ---
 

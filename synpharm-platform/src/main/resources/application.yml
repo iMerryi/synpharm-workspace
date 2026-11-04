@@ -1,0 +1,89 @@
+server:
+  # 8081 auth / 8082 predict / 8083 core / 8084 platform / 8085 asset
+  port: ${SERVER_PORT:8084}
+
+spring:
+  application:
+    name: synpharm-platform
+
+  cloud:
+    nacos:
+      server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+      username: ${NACOS_USERNAME:nacos}
+      password: ${NACOS_PASSWORD:nacos}
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
+        register-enabled: ${NACOS_REGISTER_ENABLED:true}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        fail-fast: false
+      config:
+        import-check:
+          enabled: false
+
+  # 本服务独占 synpharm_platform（design_tool 一张表）
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${PLATFORM_DB_NAME:synpharm_platform}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: ${PLATFORM_DB_USER:synpharm_platform}
+    password: ${PLATFORM_DB_PASSWORD:}
+    hikari:
+      # 平台治理是低频调用（能力探测每 10 分钟一轮），不需要大连接池
+      maximum-pool-size: ${PLATFORM_DB_POOL_SIZE:8}
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.synpharm.platform.domain.model
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+synpharm:
+  internal:
+    # 网关注入 X-Internal-Token 用的共享口令；未配置则本服务拒绝信任任何身份头（fail-closed）
+    token: ${INTERNAL_TOKEN:}
+
+# 算法引擎（FastAPI）：/api/platform/algorithm-health 的健康检查 + design_tool.available 刷新
+fastapi:
+  base-url: ${FASTAPI_URL:http://localhost:8000}
+  api-key: ${FASTAPI_API_KEY:}
+  health-timeout: ${FASTAPI_HEALTH_TIMEOUT:5000}
+  health-retries: ${FASTAPI_HEALTH_RETRIES:2}
+  health-breaker-threshold: ${FASTAPI_HEALTH_BREAKER_THRESHOLD:5}
+  health-breaker-open-ms: ${FASTAPI_HEALTH_BREAKER_OPEN_MS:30000}
+  # 能力矩阵 GET /v1/evaluate/capabilities 的超时（设计书 04 §2：P95 < 50ms）
+  probe-timeout: ${FASTAPI_PROBE_TIMEOUT:5000}
+
+# 能力探测调度（红线 R1：design_tool.available 的唯一数据源）
+platform:
+  probe:
+    # 定时全量刷新间隔，契约 03 §6.1 要求 10 分钟
+    interval-ms: ${PROBE_INTERVAL_MS:600000}
+    # 首次延迟：给引擎留出启动时间，避免开机就把一批「引擎不可达」写进库、污染首屏
+    initial-delay-ms: ${PROBE_INITIAL_DELAY_MS:20000}
+
+knife4j:
+  enable: ${KNIFE4J_ENABLED:true}
+  setting:
+    language: zh_cn
+
+app:
+  name: ${APP_NAME:SynPharm}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.synpharm: ${LOG_LEVEL:info}

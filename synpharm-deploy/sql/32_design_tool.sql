@@ -1,5 +1,6 @@
 -- =============================================
--- AI 药物分子设计平台 · 工具注册中心
+-- SynPharm · 工具注册中心
+-- 归属服务：synpharm-platform（2026-11-04 从 core 独立）
 -- 版本：v1.0  依赖：无
 -- 来源：docs/design/AI药物分子设计平台-详细设计书.md §3.3.3（权威版本）
 -- 落实需求：tools（name/type/endpoint/input_schema/output_schema）
@@ -12,7 +13,7 @@
 -- ⚠ 能力判定优先级：本表 available 是业务开关的权威，但「引擎是否真的装了」由
 --   FastAPI 的能力矩阵决定；两者不一致时以 probe 结果为准（见 04-计算层契约与校准协议.md §3）。
 -- =============================================
-USE synpharm_core;
+USE synpharm_platform;
 
 CREATE TABLE IF NOT EXISTS design_tool (
     id              BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '工具ID',

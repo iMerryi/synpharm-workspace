@@ -191,6 +191,10 @@ Check 'guard.noBaseline' ($noBaseline.Status -eq 404 -and $noBaseline.Body.error
 # ================================================================ D6 人工调整
 $sel = @($rows | Where-Object { $_.outcome -eq 'SELECTED' })[0]
 $bak = @($rows | Where-Object { $_.outcome -eq 'BACKUP' })[0]
+# 用相对变化做断言，不硬编码候选总数 —— 候选数取决于种子分子能否通过粗筛，
+# 写死「改完 backup 应该为 0」会在候选数为 3 时误报（改一条后还剩 1 条备选）
+$beforeSelected = $dec1.selectedCount
+$beforeBackup = $dec1.backupCount
 
 $noReason = Invoke-Json 'PATCH' "/api/design/decisions/$($dec1.id)/candidates/$($bak.candidateId)" @{ outcome = 'SELECTED' } $token
 Check 'd6.override.reasonRequired' ($noReason.Status -eq 400) "status=$($noReason.Status) code=$($noReason.Body.errorCode)"
@@ -202,8 +206,9 @@ $ovRow = @($ovRows | Where-Object { $_.candidateId -eq $bak.candidateId })[0]
 Check 'd6.override.topromote' ($overridden.Status -eq 200 -and $ovRow.outcome -eq 'SELECTED') "outcome=$($ovRow.outcome)"
 Check 'd6.override.reasonSaved' ($ovRow.manualOverride -eq $true -and $ovRow.overrideReason -eq '备选与首选同分，都要做') `
   "manualOverride=$($ovRow.manualOverride) reason=$($ovRow.overrideReason)"
-Check 'd6.override.countsRecalculated' ($overridden.Body.data.selectedCount -eq 2 -and $overridden.Body.data.backupCount -eq 0) `
-  "selected=$($overridden.Body.data.selectedCount) backup=$($overridden.Body.data.backupCount)"
+Check 'd6.override.countsRecalculated' `
+  ($overridden.Body.data.selectedCount -eq ($beforeSelected + 1) -and $overridden.Body.data.backupCount -eq ($beforeBackup - 1)) `
+  "before=$beforeSelected/$beforeBackup after=$($overridden.Body.data.selectedCount)/$($overridden.Body.data.backupCount)"
 
 $restored = Invoke-Json 'PATCH' "/api/design/decisions/$($dec1.id)/candidates/$($bak.candidateId)" `
   @{ outcome = 'BACKUP'; overrideReason = '还是按名额走' } $token

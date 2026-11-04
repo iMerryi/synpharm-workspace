@@ -1,0 +1,76 @@
+server:
+  # 8081 auth / 8082 predict / 8083 core / 8084 platform / 8085 asset
+  port: ${SERVER_PORT:8085}
+
+spring:
+  application:
+    name: synpharm-asset
+
+  cloud:
+    nacos:
+      server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+      username: ${NACOS_USERNAME:nacos}
+      password: ${NACOS_PASSWORD:nacos}
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:true}
+        register-enabled: ${NACOS_REGISTER_ENABLED:true}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        fail-fast: false
+      config:
+        import-check:
+          enabled: false
+
+  # 本服务独占 synpharm_asset（file_asset 一张表）
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${ASSET_DB_NAME:synpharm_asset}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: ${ASSET_DB_USER:synpharm_asset}
+    password: ${ASSET_DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${ASSET_DB_POOL_SIZE:8}
+
+  # 大文件上传的上限只在本服务放开：合并进 core 时整个设计域被迫一起放到 200MB，
+  # 那是与设计域无关的攻击面。拆开后设计域回到 Spring 默认的 1MB。
+  servlet:
+    multipart:
+      max-file-size: ${ASSET_MAX_FILE_SIZE:200MB}
+      max-request-size: ${ASSET_MAX_REQUEST_SIZE:220MB}
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.synpharm.asset.domain.model
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+synpharm:
+  internal:
+    # /internal/** 只认带了正确内部令牌的调用方
+    token: ${INTERNAL_TOKEN:}
+
+knife4j:
+  enable: ${KNIFE4J_ENABLED:true}
+  setting:
+    language: zh_cn
+
+app:
+  name: ${APP_NAME:SynPharm}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.synpharm: ${LOG_LEVEL:info}

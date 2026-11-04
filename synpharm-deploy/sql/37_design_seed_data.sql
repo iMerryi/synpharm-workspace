@@ -80,10 +80,9 @@ VALUES
 ON DUPLICATE KEY UPDATE name = VALUES(name), meta_json = VALUES(meta_json);
 
 -- ---------- ④ 工具注册（含 realness 真实性边界与「当前真实可用性」） ----------
--- 2026-10-22 服务收敛后 design_tool 与设计域同库（synpharm_core），本脚本开头已是
--- USE synpharm_core，理论上可直接写表名；保留全限定名是为了让「这张表原属 platform 域」
--- 这件事在 SQL 里仍然显式可见。
-INSERT INTO synpharm_core.design_tool
+-- 2026-11-04 起 design_tool 归 synpharm_platform（平台治理服务独立），必须写全限定名：
+-- 本脚本开头是 USE synpharm_core，不写库名会把种子写进设计域的表（已经不在了）。
+INSERT INTO synpharm_platform.design_tool
  (tool_code, name, description, category, type, provider, endpoint, async_execution, timeout_ms,
   requires_engine, capability_key, realness, available, probe_msg, agent_exposed, agent_tool_name, version)
 VALUES

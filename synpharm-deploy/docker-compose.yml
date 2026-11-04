@@ -7,7 +7,7 @@
 #   docker compose up -d
 #
 # 首次部署前先构建镜像（在 4 仓库共同父目录下执行）：
-#   docker build -t synpharm/gateway:${SYNPHARM_VERSION:-1.0.0} synpharm-cloud
+#   docker build -t synpharm/gateway:${SYNPHARM_VERSION:-1.0.0} .
 #   docker build -t synpharm/fastapi:${SYNPHARM_VERSION:-1.0.0} synpharm-fastapi
 #   docker build -t synpharm/frontend:${SYNPHARM_VERSION:-1.0.0} synpharm-frontend
 #
@@ -151,7 +151,7 @@ services:
   # 网关（微服务唯一对外入口）
   #
   # 构建镜像（在多模块根目录的父目录执行）：
-  #   docker build -t synpharm/gateway:${SYNPHARM_VERSION:-1.0.0} synpharm-cloud
+  #   docker build -t synpharm/gateway:${SYNPHARM_VERSION:-1.0.0} .
   # 宿主 8080 与拆分前的后端端口一致，因此前端 nginx 只需改上游主机名。
   # ---------------------------------------------------------------------------
   gateway:
@@ -189,9 +189,9 @@ services:
 
   # ---------------------------------------------------------------------------
   # 身份与访问（阶段 1）
-  # 镜像由 synpharm-cloud/Dockerfile 带 MODULE 参数构建：
+  # 镜像由仓库根 Dockerfile 带 MODULE 参数构建（构建上下文是仓库根）：
   #   docker build -t synpharm/auth:1.0.0 --build-arg MODULE=synpharm-auth \
-  #     --build-arg SERVER_PORT=8081 synpharm-cloud
+  #     --build-arg SERVER_PORT=8081 .
   # ---------------------------------------------------------------------------
   auth:
     image: synpharm/auth:${SYNPHARM_VERSION:-1.0.0}
@@ -234,7 +234,7 @@ services:
   # ---------------------------------------------------------------------------
   # 主业务服务（2026-10-22 收敛：原 design + asset + platform 合并）
   #   docker build -t synpharm/core:1.0.0 --build-arg MODULE=synpharm-core \
-  #     --build-arg SERVER_PORT=8083 synpharm-cloud
+  #     --build-arg SERVER_PORT=8083 .
   # ---------------------------------------------------------------------------
   core:
     image: synpharm/core:${SYNPHARM_VERSION:-1.0.0}
@@ -249,7 +249,8 @@ services:
       CORE_DB_USER: ${CORE_DB_USER:-synpharm_core}
       CORE_DB_PASSWORD: ${CORE_DB_PASSWORD:?请在 .env 中设置 CORE_DB_PASSWORD}
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:?请在 .env 中设置 INTERNAL_TOKEN}
-      # 算法引擎：能力矩阵探测（原 platform 职责，随合并进来）
+      # 计算层：仅 ChemistryClient 用（理化指标 / 结构标准化）。
+      # 2026-11-04 起能力探测与 design_tool 已归 synpharm-platform。
       FASTAPI_URL: ${FASTAPI_URL:-http://fastapi:8000}
       FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
       # MQ 拓扑由本服务在启动时声明；缺这几项会默认连 localhost:5672 并**静默声明失败**
@@ -266,6 +267,72 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - synpharm
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # 平台治理（2026-11-04 从 core 独立）
+  # 网关有 /api/platform/** 路由指向本服务：不部署它，该前缀会 503。
+  # ---------------------------------------------------------------------------
+  platform:
+    image: synpharm/platform:${SYNPHARM_VERSION:-1.0.0}
+    container_name: synpharm-platform
+    environment:
+      SERVER_PORT: 8084
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_DISCOVERY_ENABLED: "true"
+      DB_HOST: mysql
+      DB_PORT: 3306
+      PLATFORM_DB_NAME: ${PLATFORM_DB_NAME:-synpharm_platform}
+      PLATFORM_DB_USER: ${PLATFORM_DB_USER:-synpharm_platform}
+      PLATFORM_DB_PASSWORD: ${PLATFORM_DB_PASSWORD:?请在 .env 中设置 PLATFORM_DB_PASSWORD}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:?请在 .env 中设置 INTERNAL_TOKEN}
+      FASTAPI_URL: ${FASTAPI_URL:-http://fastapi:8000}
+      FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - synpharm
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # 文件资产（2026-11-04 从 core 独立）
+  # 端点 /internal/files/** 不经网关，只服务间调用；无网关路由 = 不暴露到公网。
+  # ---------------------------------------------------------------------------
+  asset:
+    image: synpharm/asset:${SYNPHARM_VERSION:-1.0.0}
+    container_name: synpharm-asset
+    environment:
+      SERVER_PORT: 8085
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_DISCOVERY_ENABLED: "true"
+      DB_HOST: mysql
+      DB_PORT: 3306
+      ASSET_DB_NAME: ${ASSET_DB_NAME:-synpharm_asset}
+      ASSET_DB_USER: ${ASSET_DB_USER:-synpharm_asset}
+      ASSET_DB_PASSWORD: ${ASSET_DB_PASSWORD:?请在 .env 中设置 ASSET_DB_PASSWORD}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:?请在 .env 中设置 INTERNAL_TOKEN}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8085/actuator/health"]
       interval: 30s
       timeout: 5s
       retries: 5

@@ -11,9 +11,9 @@
 # 变量约定（新增服务时在此追加一行调用即可）：
 #   AUTH_DB_USER / AUTH_DB_PASSWORD       -> synpharm_auth
 #   PREDICT_DB_USER / PREDICT_DB_PASSWORD -> synpharm_predict   （阶段 4）
-#   CORE_DB_USER / CORE_DB_PASSWORD       -> synpharm_core      （阶段 2 起；2026-10-22 收敛）
-#     · 原 design(阶段2) + asset(阶段3) + platform(阶段5) 三个 schema 已合并为 synpharm_core
-#     · 三者同库后可以建跨域外键（原先因跨 schema 禁止而无法建立）
+#   CORE_DB_USER / CORE_DB_PASSWORD       -> synpharm_core      （设计域：需求/生成/编辑/决策）
+#   PLATFORM_DB_USER / PLATFORM_DB_PASSWORD -> synpharm_platform（2026-11-04 从 core 独立）
+#   ASSET_DB_USER / ASSET_DB_PASSWORD     -> synpharm_asset     （2026-11-04 从 core 独立）
 # =============================================================================
 set -euo pipefail
 
@@ -43,14 +43,16 @@ EOSQL
 # ---------- 阶段 1：身份与访问 ----------
 create_account "${AUTH_DB_USER:-synpharm_auth}" "${AUTH_DB_PASSWORD:-}" "synpharm_auth"
 
-# ---------- 阶段 2：药物设计 ----------
+# ---------- 阶段 2：设计域 ----------
 create_account "${CORE_DB_USER:-synpharm_core}"     "${CORE_DB_PASSWORD:-}"     "synpharm_core"
 
-# ---------- 阶段 3：资产 ----------
+# ---------- 阶段 3：资产（2026-11-04 从 core 独立） ----------
+create_account "${ASSET_DB_USER:-synpharm_asset}"   "${ASSET_DB_PASSWORD:-}"    "synpharm_asset"
 
 # ---------- 阶段 4：预测 ----------
 create_account "${PREDICT_DB_USER:-synpharm_predict}"   "${PREDICT_DB_PASSWORD:-}"  "synpharm_predict"
 
-# ---------- 阶段 5：平台 ----------
+# ---------- 阶段 5：平台治理（2026-11-04 从 core 独立） ----------
+create_account "${PLATFORM_DB_USER:-synpharm_platform}" "${PLATFORM_DB_PASSWORD:-}" "synpharm_platform"
 
 echo "[00_create_accounts] 完成"

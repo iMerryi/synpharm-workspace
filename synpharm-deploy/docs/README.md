@@ -14,7 +14,7 @@
 | **看业务流程全貌** | [`uml/业务流程.md`](./uml/业务流程.md) | **7 张图内嵌 Mermaid，打开即可看** |
 | **看设计域 UML** | [`uml/设计域.md`](./uml/设计域.md) | **13 张图内嵌 Mermaid**（含 33 张表数据模型、5 个状态机） |
 | 做微服务拆分 | [`architecture/SpringCloud微服务重构方案.md`](./architecture/SpringCloud微服务重构方案.md) | 最新（2026-10-14） |
-| **跑微服务骨架（Nacos / 网关 / auth / design）** | [`../../synpharm-cloud/README.md`](../../synpharm-cloud/README.md) | **阶段 0、1、2A 已实施**：模块结构、启动步骤、排障 |
+| **跑微服务骨架（Nacos / 网关 / auth / design）** | [`../../README.md`](../../README.md) | **阶段 0、1、2A 已实施**：模块结构、启动步骤、排障 |
 | 写代码前确认规范 | [`conventions/README.md`](./conventions/README.md) | 接口/错误码/配置/数据/事务/安全/工程 |
 | 开发设计域（干实验工作台） | [`design/detailed/README.md`](./design/detailed/README.md) | 可直接实施的层级 |
 | 开发预测模块 | [`modules/predict/`](./modules/predict/) | 见 §2 权威裁决 |
@@ -36,7 +36,7 @@
 |---|---|---|
 | 项目背景 | `SynPharm项目书.md` | — |
 | 系统架构总览 | `architecture/架构设计文档.md` | `SynPharm项目整体架构培训文档.md`（派生教学版） |
-| **微服务拆分** | `architecture/SpringCloud微服务重构方案.md`（方案 + 阶段 0/1/2A 记录）<br>`../../synpharm-cloud/README.md`（工程与启动） | — |
+| **微服务拆分** | `architecture/SpringCloud微服务重构方案.md`（方案 + 阶段 0/1/2A 记录）<br>`../../README.md`（工程与启动） | — |
 | **工程规范** | `conventions/`（5 份） | — |
 | **业务流程 UML** | `uml/业务流程.md`（Mermaid 内嵌，7 张） | PlantUML 旧版 7 张 + 原 README（**已删除**） |
 | **设计域（干实验）** | `design/detailed/`（7 份 + `openapi.yaml`）<br>`uml/设计域.md`（13 张图） | `AI药物分子设计平台-详细设计书.md`（上游基线）<br>`设计域模块-00~07`（上游基线，共 8 份） |

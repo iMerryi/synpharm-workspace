@@ -1,5 +1,6 @@
 -- =============================================
--- AI 药物分子设计平台 · 对象存储资产（SHA256 内容寻址去重）
+-- SynPharm · 对象存储资产（SHA256 内容寻址去重）
+-- 归属服务：synpharm-asset（2026-11-04 从 core 独立）
 -- 版本：v1.0  依赖：无
 -- 来源：docs/design/AI药物分子设计平台-详细设计书.md §3.3.2（权威版本）
 -- 落实需求：大文件（PDB/SDF）存对象存储，DB 只存 URI；SHA256 去重
@@ -8,7 +9,7 @@
 -- （零上传）；未命中则上传后插入。删除走「ref_count-1，归零后进入 GC 队列」，不做物理删除。
 -- 本表只登记元数据；同 23 号约定：DECIMAL 不用 FLOAT/DOUBLE（此处无浮点字段）。
 -- =============================================
-USE synpharm_core;
+USE synpharm_asset;
 
 CREATE TABLE IF NOT EXISTS file_asset (
     id           BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '资产ID',
