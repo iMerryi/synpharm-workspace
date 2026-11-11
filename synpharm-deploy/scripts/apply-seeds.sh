@@ -47,9 +47,11 @@ SEEDS=(
   "49_library_mock.sql"
 )
 
+# 必须带默认库：49_library_mock.sql 直接引用 library_dataset 等未加库名的表，
+# 官方镜像靠 `mysql <db>` 选库；手工执行时若不带 -D 会报 "No database selected"。
 mysql_exec() {
   docker exec -i -e MYSQL_PWD="$ROOT_PASS" "$CONTAINER" \
-    mysql -u"$ROOT_USER" --default-character-set=utf8mb4 "$@"
+    mysql -u"$ROOT_USER" --default-character-set=utf8mb4 -D synpharm_core "$@"
 }
 
 checksum() {
