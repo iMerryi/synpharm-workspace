@@ -342,6 +342,62 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
+  # 预测域（AI 预测：DTI / PPI / DDI + 批量任务）
+  # 网关有 /api/predict/**、/api/results/**、/api/favorites/**、/api/tasks/**、
+  # /api/batch/** 五条路由指向本服务：不部署它，评价记录等页面会统一报
+  # 「依赖的下游服务暂不可用」（HTTP 503）。
+  #   docker build -t synpharm/predict:1.0.0 --build-arg MODULE=synpharm-predict \
+  #     --build-arg SERVER_PORT=8082 .
+  # ---------------------------------------------------------------------------
+  predict:
+    image: synpharm/predict:${SYNPHARM_VERSION:-1.0.0}
+    container_name: synpharm-predict
+    environment:
+      SERVER_PORT: 8082
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_DISCOVERY_ENABLED: "true"
+      DB_HOST: mysql
+      DB_PORT: 3306
+      PREDICT_DB_NAME: ${PREDICT_DB_NAME:-synpharm_predict}
+      PREDICT_DB_USER: ${PREDICT_DB_USER:-synpharm_predict}
+      PREDICT_DB_PASSWORD: ${PREDICT_DB_PASSWORD:?请在 .env 中设置 PREDICT_DB_PASSWORD}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:?请在 .env 中设置 INTERNAL_TOKEN}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USER:-synpharm}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?请在 .env 中设置 RABBITMQ_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      FASTAPI_URL: ${FASTAPI_URL:-http://fastapi:8000}
+      FASTAPI_API_KEY: ${FASTAPI_API_KEY:-}
+      UNIPROT_BASE_URL: ${UNIPROT_BASE_URL:-https://rest.uniprot.org}
+      RCSB_BASE_URL: ${RCSB_BASE_URL:-https://data.rcsb.org}
+      # 批量上传的落盘目录：必须持久化，否则重启后历史批量结果文件 404
+      FILE_UPLOAD_DIR: /data/uploads
+      FILE_RESULT_DIR: /data/results
+    volumes:
+      - predict_data:/data
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - synpharm
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
   # FastAPI 算法引擎（AI 预测）
   # ---------------------------------------------------------------------------
   fastapi:
@@ -401,3 +457,4 @@ volumes:
   nacos_data:
   nacos_logs:
   fastapi_logs:
+  predict_data:
