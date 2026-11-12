@@ -38,9 +38,16 @@ services:
       # （口令为空即跳过，不建弱口令账号），未来启用该服务时会以「账号不存在」失败。
       AUTH_DB_USER: ${AUTH_DB_USER:-synpharm_auth}
       AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-}
-      # 2026-10-22 服务收敛：原 design/asset/platform 三个账号合并为一个 core 账号
+      # 2026-10-22 design 域账号更名为 core（原 synpharm_design 已废弃）
       CORE_DB_USER: ${CORE_DB_USER:-synpharm_core}
       CORE_DB_PASSWORD: ${CORE_DB_PASSWORD:-}
+      # 2026-11-04 asset / platform 从 core 独立：各自独立 schema + 独立账号。
+      # 少了这两组变量，00_create_accounts.sh 会因口令为空**静默跳过**建号，
+      # 全新数据卷起来后 asset / platform 会以「账号不存在」连库失败。
+      ASSET_DB_USER: ${ASSET_DB_USER:-synpharm_asset}
+      ASSET_DB_PASSWORD: ${ASSET_DB_PASSWORD:-}
+      PLATFORM_DB_USER: ${PLATFORM_DB_USER:-synpharm_platform}
+      PLATFORM_DB_PASSWORD: ${PLATFORM_DB_PASSWORD:-}
       PREDICT_DB_USER: ${PREDICT_DB_USER:-synpharm_predict}
       PREDICT_DB_PASSWORD: ${PREDICT_DB_PASSWORD:-}
     ports:
